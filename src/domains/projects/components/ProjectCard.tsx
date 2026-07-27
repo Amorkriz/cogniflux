@@ -32,10 +32,11 @@ export interface ProjectCardProps {
   project: Project;
 }
 
-/** 项目列表卡：techStack/projectStatus/period（基线 §7 列表页用） */
+/** 项目列表卡：techStack/projectStatus/period（基线 §7 列表页用）；
+ * glowBorder 渐变描边（视觉改版 §六：列表卡启用，hover 只动 opacity） */
 export function ProjectCard({ project }: ProjectCardProps) {
   return (
-    <Card interactive className="relative h-full">
+    <Card interactive glowBorder className="relative h-full">
       <article className="flex h-full flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={PROJECT_STATUS_VARIANT[project.projectStatus]}>

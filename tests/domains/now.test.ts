@@ -24,6 +24,19 @@ describe("now repository", () => {
     expect(await getNowUpdateBySlug("1999-01")).toBeUndefined();
   });
 
+  it("currentlyLearning/openTo 缺省为 []（视觉改版新字段）", () => {
+    const parsed = nowUpdateSchema.parse({
+      slug: "2026-08",
+      title: "x",
+      summary: "y",
+      status: "published",
+      createdAt: "2026-08-01",
+      date: "2026-08",
+    });
+    expect(parsed.currentlyLearning).toEqual([]);
+    expect(parsed.openTo).toEqual([]);
+  });
+
   it("schema 拒绝坏数据（非法 entry.category）", () => {
     expect(() =>
       nowUpdateSchema.parse({

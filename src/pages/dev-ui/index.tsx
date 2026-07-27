@@ -22,6 +22,7 @@ import {
   Search,
   Separator,
   Skeleton,
+  StatusCapsule,
   Tabs,
   TabsContent,
   TabsList,
@@ -128,6 +129,37 @@ export default function DevUi() {
               interactive：hover 微抬升（纯 CSS，reduced-motion 取消）
             </p>
           </Card>
+          <Card glass>
+            <p className="text-sm text-secondary">
+              glass：毛玻璃（backdrop-filter，旧设备 @supports 降级纯色）
+            </p>
+          </Card>
+          <Card glowBorder>
+            <p className="text-sm text-secondary">
+              glowBorder：hover/focus-within 渐变流光描边（只动 opacity）
+            </p>
+          </Card>
+          <Card glass glowBorder interactive>
+            <p className="text-sm text-secondary">
+              glass + glowBorder + interactive 叠加
+            </p>
+          </Card>
+        </div>
+      </Section>
+
+      <Section title="StatusCapsule（游戏化状态胶囊·非领域状态，领域状态用 Badge/Tag）">
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusCapsule>accent</StatusCapsule>
+          <StatusCapsule tone="secondary">secondary</StatusCapsule>
+          <StatusCapsule tone="tertiary">tertiary</StatusCapsule>
+          <StatusCapsule tone="warm">warm</StatusCapsule>
+          <StatusCapsule tone="pink">pink</StatusCapsule>
+          <StatusCapsule tone="success">online</StatusCapsule>
+          <StatusCapsule tone="warning">building</StatusCapsule>
+          <StatusCapsule tone="neutral">archived</StatusCapsule>
+          <StatusCapsule tone="success" animated={false}>
+            静态点 animated=false
+          </StatusCapsule>
         </div>
       </Section>
 

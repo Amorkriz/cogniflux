@@ -19,6 +19,7 @@ export {
   ExternalLink,
   FlaskConical,
   GitBranch,
+  GitPullRequest,
   Globe,
   Hammer,
   Inbox,

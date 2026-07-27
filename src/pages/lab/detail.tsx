@@ -7,7 +7,12 @@ import {
   LAB_OUTCOME_LABEL,
   LAB_OUTCOME_VARIANT,
 } from "@/domains/lab";
-import { getReferencesTo, getSiteSettings, resolveRefs } from "@/domains/site";
+import {
+  getReferencesTo,
+  getSiteSettings,
+  resolveRefs,
+  sanitizeRelated,
+} from "@/domains/site";
 import { Prose, RelatedRefs } from "@/shared/components";
 import { FadeIn, SlideUp } from "@/shared/motion";
 import { buildMeta } from "@/shared/seo";
@@ -30,12 +35,14 @@ export async function loader({ params }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
   const { experiment } = detail;
-  const [site, related, referencedBy] = await Promise.all([
+  const [site, related, referencedBy, [safeExperiment]] = await Promise.all([
     getSiteSettings(),
     resolveRefs(experiment.related),
     getReferencesTo({ kind: "lab", slug: experiment.slug }),
+    // 序列化前净化 related，避免生产产物泄露 draft slug
+    sanitizeRelated([experiment]),
   ]);
-  return { site, experiment, related, referencedBy };
+  return { site, experiment: safeExperiment ?? experiment, related, referencedBy };
 }
 
 export function meta({ loaderData: data }: Route.MetaArgs) {

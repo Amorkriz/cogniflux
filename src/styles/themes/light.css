@@ -1,13 +1,19 @@
 /* Light 主题：与 :root 默认值一致，显式声明以保证 data-theme 切换语义完整。
- * 对比度（WCAG AA）：--text-primary #18181b on #fafafa ≈ 16.6:1；
- * --text-secondary #52525b on #fafafa ≈ 7.0:1；--accent #2563eb on #ffffff ≈ 5.2:1。 */
+ * 对比度（WCAG AA，全部 ≥4.5:1）：
+ * --text-primary   #18181b on #fafafa ≈ 16.6:1 / on #ffffff ≈ 17.4:1
+ * --text-secondary #3f3f46 on #fafafa ≈ 10.0:1 / on #ffffff ≈ 10.4:1 / on #f4f4f5 ≈ 9.5:1
+ * --accent         #2563eb on #ffffff ≈ 5.2:1
+ * --accent-secondary #9333ea on #fafafa ≈ 5.2:1 / on #f4f4f5 ≈ 4.9:1
+ * --accent-tertiary  #0e7490 on #fafafa ≈ 5.1:1 / on #f4f4f5 ≈ 4.9:1
+ * --accent-warm      #c2410c on #fafafa ≈ 5.0:1 / on #f4f4f5 ≈ 4.7:1
+ * --accent-pink      #be185d on #fafafa ≈ 5.8:1 / on #f4f4f5 ≈ 5.5:1 */
 [data-theme="light"] {
   --bg-base: var(--gray-50);
   --bg-surface: #ffffff;
   --bg-raised: var(--gray-100);
 
   --text-primary: var(--gray-900);
-  --text-secondary: var(--gray-600);
+  --text-secondary: var(--gray-700);
   --text-tertiary: var(--gray-500);
   --text-inverse: var(--gray-50);
 
@@ -16,6 +22,41 @@
 
   --accent: var(--brand-600);
   --accent-hover: var(--brand-700);
+
+  /* 辅助强调色（视觉改版） */
+  --accent-secondary: var(--purple-600);
+  --accent-tertiary: var(--cyan-600);
+  --accent-warm: var(--orange-600);
+  --accent-pink: var(--pink-600);
+
+  /* 装饰背景（极淡蓝紫，浅色基底上低透明度叠加） */
+  --bg-hero: linear-gradient(
+    135deg,
+    rgb(59 130 246 / 0.08) 0%,
+    rgb(147 51 234 / 0.06) 45%,
+    rgb(34 211 238 / 0.05) 100%
+  );
+  --bg-grid-line: rgb(37 99 235 / 0.07);
+  --bg-glow: radial-gradient(
+    ellipse at center,
+    rgb(59 130 246 / 0.15) 0%,
+    transparent 70%
+  );
+
+  /* 毛玻璃 */
+  --glass-bg: rgb(255 255 255 / 0.65);
+  --glass-border: rgb(228 228 231 / 0.6);
+  --glass-blur: 10px;
+
+  /* 发光阴影与渐变边框 */
+  --shadow-glow: 0 0 24px rgb(37 99 235 / 0.18);
+  --gradient-border: conic-gradient(
+    from 180deg at 50% 50%,
+    var(--brand-600),
+    var(--purple-600),
+    var(--cyan-600),
+    var(--brand-600)
+  );
 
   --success: var(--green-600);
   --warning: var(--amber-600);

@@ -1,21 +1,65 @@
-/* Dark 主题：深灰基底（非纯黑），同一冷静蓝提亮一档作强调。
- * 对比度（WCAG AA）：--text-primary #f4f4f5 on #131316 ≈ 17:1；
- * --text-secondary #a1a1aa on #131316 ≈ 7.6:1；--accent #60a5fa on #1c1c21 ≈ 6.6:1。 */
+/* Dark 主题：深蓝紫「夜间开发者工作台」基底（视觉改版：由纯灰黑调为带蓝紫倾向），
+ * 同一冷静蓝提亮一档作强调，辅助强调色取 400 档。
+ * 对比度（WCAG AA，全部 ≥4.5:1）：
+ * --text-primary   #f4f4f5 on #12121e ≈ 16.9:1 / on #1a1a2b ≈ 15.6:1 / on #242438 ≈ 13.8:1
+ * --text-secondary #d4d4d8 on #12121e ≈ 12.6:1 / on #1a1a2b ≈ 11.6:1 / on #242438 ≈ 10.3:1
+ * --accent           #60a5fa on #12121e ≈ 7.3:1 / on #1a1a2b ≈ 6.7:1
+ * --accent-secondary #c084fc on #12121e ≈ 7.0:1 / on #1a1a2b ≈ 6.5:1
+ * --accent-tertiary  #22d3ee on #12121e ≈ 10.3:1 / on #1a1a2b ≈ 9.5:1
+ * --accent-warm      #fb923c on #12121e ≈ 8.2:1 / on #1a1a2b ≈ 7.6:1
+ * --accent-pink      #f472b6 on #12121e ≈ 7.0:1 / on #1a1a2b ≈ 6.5:1 */
 [data-theme="dark"] {
-  --bg-base: #131316;
-  --bg-surface: #1c1c21;
-  --bg-raised: #26262c;
+  --bg-base: #12121e;
+  --bg-surface: #1a1a2b;
+  --bg-raised: #242438;
 
   --text-primary: var(--gray-100);
-  --text-secondary: var(--gray-400);
+  /* text-secondary 由 gray-400 上调为 gray-300（视觉改版对比度红线） */
+  --text-secondary: var(--gray-300);
   --text-tertiary: var(--gray-500);
   --text-inverse: var(--gray-900);
 
-  --border-default: #303038;
-  --border-strong: #43434d;
+  /* 边框随基底带蓝紫倾向 */
+  --border-default: #2e2e46;
+  --border-strong: #414163;
 
   --accent: var(--brand-400);
   --accent-hover: var(--brand-300);
+
+  /* 辅助强调色（视觉改版）：暗色侧统一取 400 档提亮 */
+  --accent-secondary: var(--purple-400);
+  --accent-tertiary: var(--cyan-400);
+  --accent-warm: var(--orange-400);
+  --accent-pink: var(--pink-400);
+
+  /* 装饰背景：暗色侧透明度略升，保持氛围可感知 */
+  --bg-hero: linear-gradient(
+    135deg,
+    rgb(96 165 250 / 0.1) 0%,
+    rgb(192 132 252 / 0.08) 45%,
+    rgb(34 211 238 / 0.06) 100%
+  );
+  --bg-grid-line: rgb(147 165 250 / 0.08);
+  --bg-glow: radial-gradient(
+    ellipse at center,
+    rgb(147 51 234 / 0.25) 0%,
+    transparent 70%
+  );
+
+  /* 毛玻璃：以 surface 色低透明度 + 微亮描边 */
+  --glass-bg: rgb(26 26 43 / 0.6);
+  --glass-border: rgb(255 255 255 / 0.08);
+  --glass-blur: 10px;
+
+  /* 发光阴影与渐变边框：改用 400 档，避免暗底上发灰 */
+  --shadow-glow: 0 0 24px rgb(96 165 250 / 0.28);
+  --gradient-border: conic-gradient(
+    from 180deg at 50% 50%,
+    var(--brand-400),
+    var(--purple-400),
+    var(--cyan-400),
+    var(--brand-400)
+  );
 
   --success: var(--green-400);
   --warning: var(--amber-400);

@@ -1,24 +1,35 @@
 import { Link } from "react-router";
 
 import type { Route } from "./+types/index";
+import { AboutContact } from "./about-contact";
+import { HeroSection } from "./hero-section";
+import { NowStrip } from "./now-strip";
 import { AgentCard, getAgents } from "@/domains/agents";
 import { ArticleCard, getArticles } from "@/domains/articles";
+import { getLatestNowUpdate } from "@/domains/now";
 import { getProfile } from "@/domains/profile";
-import { getProjects, ProjectCard } from "@/domains/projects";
-import { getSiteSettings, getSpotlight } from "@/domains/site";
-import { FadeIn, SlideUp, Stagger } from "@/shared/motion";
+import { FeaturedProjectCard, getProjects } from "@/domains/projects";
+import { getSiteSettings, getSpotlight, sanitizeRelated } from "@/domains/site";
+import { FadeIn, Stagger } from "@/shared/motion";
 import { buildMeta, websiteJsonLd } from "@/shared/seo";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  buttonVariants,
-  Card,
-  ChevronDown,
-} from "@/shared/ui";
+import { ArrowRight } from "@/shared/ui";
+
+import type { Project } from "@/domains/projects";
+
+/** featuredOrder 升序（未设排最后） */
+function byFeaturedOrder(
+  a: { featuredOrder?: number },
+  b: { featuredOrder?: number },
+): number {
+  return (
+    (a.featuredOrder ?? Number.MAX_SAFE_INTEGER) -
+    (b.featuredOrder ?? Number.MAX_SAFE_INTEGER)
+  );
+}
 
 /** 构建期取数（ssr:false + prerender：loader 在构建时运行并固化进产物） */
 export async function loader() {
-  const [site, profile, spotlight, articles, agents, projects] =
+  const [site, profile, spotlight, rawArticles, rawAgents, rawProjects, latestNow] =
     await Promise.all([
       getSiteSettings(),
       getProfile(),
@@ -26,14 +37,38 @@ export async function loader() {
       getArticles(),
       getAgents(),
       getProjects(),
+      getLatestNowUpdate(),
     ]);
+  // 序列化前净化 related，避免生产产物泄露 draft slug
+  const [articles, agents, projects] = await Promise.all([
+    sanitizeRelated(rawArticles),
+    sanitizeRelated(rawAgents),
+    sanitizeRelated(rawProjects),
+  ]);
+
+  // Featured Project：spotlight 解析为 project 时优先，否则 featured 按 featuredOrder 第一个
+  const spotlightProject: Project | undefined =
+    spotlight?.kind === "project"
+      ? projects.find((project) => project.slug === spotlight.slug)
+      : undefined;
+  const featuredProject =
+    spotlightProject ??
+    projects.filter((project) => project.featured).sort(byFeaturedOrder)[0];
+
+  // Selected Agents：featured 优先（按 featuredOrder），不足补最新，共 3 张
+  const featuredAgents = agents
+    .filter((agent) => agent.featured)
+    .sort(byFeaturedOrder);
+  const restAgents = agents.filter((agent) => !agent.featured);
+  const selectedAgents = [...featuredAgents, ...restAgents].slice(0, 3);
+
   return {
     site,
     profile,
-    spotlight,
+    featuredProject,
+    selectedAgents,
     latestArticles: articles.slice(0, 3),
-    featuredAgents: agents.filter((agent) => agent.featured),
-    featuredProjects: projects.filter((project) => project.featured),
+    latestNow,
   };
 }
 
@@ -87,109 +122,78 @@ function SectionHeader({
   );
 }
 
-/** 首页：身份陈述 Hero + spotlight 精选 + 最新文章 + 精选 Agents/Projects */
+/**
+ * 首页（视觉改版 §五）：全宽 Hero（工作台场景装饰）→ Featured Project →
+ * Selected Agents → Latest Writing → NowStrip → About/Contact。
+ */
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { profile, spotlight, latestArticles, featuredAgents, featuredProjects } =
+  const { profile, featuredProject, selectedAgents, latestArticles, latestNow } =
     loaderData;
+  const [firstArticle, ...restArticles] = latestArticles;
 
   return (
-    <div className="mx-auto max-w-page px-4 py-section sm:px-6">
-      {/* 移动首屏克制（基线 §12）：身份陈述 + spotlight 入口 + 滚动暗示 */}
-      <SlideUp>
-        <p className="font-mono text-sm text-tertiary">
-          {profile.name} · cogniflux
-        </p>
-        <h1 className="mt-2 max-w-prose-container text-4xl font-bold tracking-tight text-primary sm:text-5xl">
-          {profile.title}
-        </h1>
-        <p className="mt-4 max-w-prose-container text-lg text-secondary">
-          {profile.bio}
-        </p>
-        <div className="mt-8 flex flex-wrap items-center gap-3">
-          <Link to="/agents" className={buttonVariants({ variant: "primary" })}>
-            看看 Agents
-            <ArrowRight aria-hidden="true" />
-          </Link>
-          <Link to="/writing" className={buttonVariants({ variant: "secondary" })}>
-            读些文章
-          </Link>
-        </div>
-      </SlideUp>
+    <>
+      <HeroSection profile={profile} />
 
-      {spotlight ? (
-        <FadeIn delay={0.12} className="mt-block">
-          <Card elevated interactive className="relative">
-            <p className="font-mono text-xs text-tertiary">spotlight</p>
-            <h2 className="mt-2 text-xl font-semibold text-primary">
-              <Link
-                to={spotlight.href}
-                className="inline-flex items-center gap-1.5 transition-colors duration-(--motion-fast) after:absolute after:inset-0 hover:text-accent"
-              >
-                {spotlight.title}
-                <ArrowUpRight aria-hidden="true" className="size-5 text-tertiary" />
-              </Link>
-            </h2>
-            <p className="mt-2 text-sm text-secondary">
-              当前最值得关注的方向——从这里进入正在构建的核心项目。
-            </p>
-          </Card>
-        </FadeIn>
-      ) : null}
+      <div className="mx-auto max-w-page px-4 py-section sm:px-6">
+        {featuredProject ? (
+          <section aria-labelledby="home-featured-project">
+            <SectionHeader
+              id="home-featured-project"
+              title="精选项目"
+              to="/projects"
+              linkLabel="全部项目"
+            />
+            <FadeIn delay={0.08} className="mt-block">
+              <FeaturedProjectCard project={featuredProject} />
+            </FadeIn>
+          </section>
+        ) : null}
 
-      {/* 滚动暗示：纯装饰，读屏隐藏 */}
-      <FadeIn delay={0.2} className="mt-block flex justify-center">
-        <span aria-hidden="true">
-          <ChevronDown className="size-5 animate-breathe text-tertiary motion-reduce:animate-none" />
-        </span>
-      </FadeIn>
+        {selectedAgents.length > 0 ? (
+          <section className="mt-section" aria-labelledby="home-agents">
+            <SectionHeader
+              id="home-agents"
+              title="精选 Agents"
+              to="/agents"
+              linkLabel="全部 Agents"
+            />
+            <Stagger className="mt-block grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {selectedAgents.map((agent) => (
+                <AgentCard key={agent.slug} agent={agent} />
+              ))}
+            </Stagger>
+          </section>
+        ) : null}
 
-      {latestArticles.length > 0 ? (
-        <section className="mt-section" aria-labelledby="home-articles">
-          <SectionHeader
-            id="home-articles"
-            title="最新文章"
-            to="/writing"
-            linkLabel="全部文章"
-          />
-          <Stagger className="mt-block grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {latestArticles.map((article) => (
-              <ArticleCard key={article.slug} article={article} />
-            ))}
-          </Stagger>
-        </section>
-      ) : null}
+        {latestArticles.length > 0 ? (
+          <section className="mt-section" aria-labelledby="home-articles">
+            <SectionHeader
+              id="home-articles"
+              title="最新文章"
+              to="/writing"
+              linkLabel="全部文章"
+            />
+            {/* 首篇 featured 大卡占满整行，其余 2 篇默认卡 */}
+            {firstArticle ? (
+              <FadeIn delay={0.08} className="mt-block">
+                <ArticleCard article={firstArticle} size="featured" />
+              </FadeIn>
+            ) : null}
+            {restArticles.length > 0 ? (
+              <Stagger className="mt-4 grid gap-4 sm:grid-cols-2">
+                {restArticles.map((article) => (
+                  <ArticleCard key={article.slug} article={article} />
+                ))}
+              </Stagger>
+            ) : null}
+          </section>
+        ) : null}
 
-      {featuredAgents.length > 0 ? (
-        <section className="mt-section" aria-labelledby="home-agents">
-          <SectionHeader
-            id="home-agents"
-            title="精选 Agents"
-            to="/agents"
-            linkLabel="全部 Agents"
-          />
-          <Stagger className="mt-block grid gap-4 sm:grid-cols-2">
-            {featuredAgents.map((agent) => (
-              <AgentCard key={agent.slug} agent={agent} />
-            ))}
-          </Stagger>
-        </section>
-      ) : null}
+        {latestNow ? <NowStrip now={latestNow} /> : null}
 
-      {featuredProjects.length > 0 ? (
-        <section className="mt-section" aria-labelledby="home-projects">
-          <SectionHeader
-            id="home-projects"
-            title="精选项目"
-            to="/projects"
-            linkLabel="全部项目"
-          />
-          <Stagger className="mt-block grid gap-4 sm:grid-cols-2">
-            {featuredProjects.map((project) => (
-              <ProjectCard key={project.slug} project={project} />
-            ))}
-          </Stagger>
-        </section>
-      ) : null}
-    </div>
+        <AboutContact profile={profile} />
+      </div>
+    </>
   );
 }

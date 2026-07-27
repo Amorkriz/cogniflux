@@ -15,4 +15,9 @@ export {
   getSpotlightRef,
   getSpotlight,
 } from "./repository";
-export { resolveRef, resolveRefs, getReferencesTo } from "./references";
+export {
+  resolveRef,
+  resolveRefs,
+  getReferencesTo,
+  sanitizeRelated,
+} from "./references";

@@ -7,6 +7,7 @@ import {
   getSpotlight,
   resolveRef,
   resolveRefs,
+  sanitizeRelated,
 } from "@/domains/site";
 
 describe("site repository", () => {
@@ -61,12 +62,71 @@ describe("references 聚合器（正向解析 + 反向查询）", () => {
     expect(refs.map((r) => r.slug)).toContain("cogniflux-platform");
   });
 
-  it("getReferencesTo：反向图覆盖草稿（不受 draft 过滤影响）", async () => {
-    // flux-agent-runtime 被 agent / lab / 草稿文章共同引用。
-    const refs = await getReferencesTo({ kind: "project", slug: "flux-agent-runtime" });
+  it("getReferencesTo：dev 语义（includeDrafts）下反向图覆盖草稿来源", async () => {
+    // flux-agent-runtime 被 agent / lab / 草稿文章共同引用；写作预览需全部可见。
+    const refs = await getReferencesTo(
+      { kind: "project", slug: "flux-agent-runtime" },
+      { includeDrafts: true },
+    );
     const slugs = refs.map((r) => r.slug);
     expect(slugs).toContain("refactor-navigator");
     expect(slugs).toContain("streaming-agent-latency");
     expect(slugs).toContain("designing-agent-contracts");
+  });
+
+  it("生产语义：resolveRef/resolveRefs 跳过 draft 目标", async () => {
+    // draft 项目在生产不预渲染，解析为链接会 404，必须过滤。
+    expect(
+      await resolveRef(
+        { kind: "project", slug: "flux-agent-runtime" },
+        { includeDrafts: false },
+      ),
+    ).toBeUndefined();
+    const resolved = await resolveRefs(
+      [
+        { kind: "project", slug: "flux-agent-runtime" },
+        { kind: "project", slug: "cogniflux-platform" },
+      ],
+      { includeDrafts: false },
+    );
+    expect(resolved.map((r) => r.slug)).toEqual(["cogniflux-platform"]);
+  });
+
+  it("生产语义：getReferencesTo 不返回 draft 来源，保留 published 来源", async () => {
+    const refs = await getReferencesTo(
+      { kind: "project", slug: "flux-agent-runtime" },
+      { includeDrafts: false },
+    );
+    const slugs = refs.map((r) => r.slug);
+    expect(slugs).toContain("refactor-navigator");
+    expect(slugs).toContain("streaming-agent-latency");
+    expect(slugs).not.toContain("designing-agent-contracts");
+  });
+
+  it("dev 语义：resolveRefs 保留 draft 目标（写作预览）", async () => {
+    const resolved = await resolveRefs(
+      [{ kind: "project", slug: "flux-agent-runtime" }],
+      { includeDrafts: true },
+    );
+    expect(resolved.map((r) => r.slug)).toEqual(["flux-agent-runtime"]);
+  });
+
+  it("sanitizeRelated：生产语义剔除 draft 引用，dev 语义保留", async () => {
+    const items = [
+      {
+        slug: "refactor-navigator",
+        related: [
+          { kind: "project" as const, slug: "flux-agent-runtime" },
+          { kind: "article" as const, slug: "hello-cogniflux" },
+        ],
+      },
+    ];
+    const prod = await sanitizeRelated(items, { includeDrafts: false });
+    expect(prod[0]?.related.map((r) => r.slug)).toEqual(["hello-cogniflux"]);
+    const dev = await sanitizeRelated(items, { includeDrafts: true });
+    expect(dev[0]?.related.map((r) => r.slug)).toEqual([
+      "flux-agent-runtime",
+      "hello-cogniflux",
+    ]);
   });
 });

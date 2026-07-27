@@ -9,7 +9,10 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-accent text-inverse hover:bg-accent-hover active:bg-accent-hover",
+        // primary 附带 svg 箭头 hover 右移（视觉改版）：只动 transform，
+        // 时长用动效令牌，reduced-motion 时无过渡；无 svg 子元素时零影响
+        primary:
+          "bg-accent text-inverse hover:bg-accent-hover active:bg-accent-hover [&_svg]:transition-transform [&_svg]:duration-(--motion-fast) hover:[&_svg]:translate-x-0.5 motion-reduce:[&_svg]:transition-none",
         secondary:
           "border border-default bg-surface text-primary hover:bg-raised active:bg-raised",
         ghost: "text-secondary hover:bg-raised hover:text-primary active:bg-raised",

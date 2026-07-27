@@ -22,5 +22,9 @@ export const nowEntrySchema = z.object({
 export const nowUpdateSchema = baseContentSchema.extend({
   date: z.string().min(1),
   focus: z.array(z.string()).default([]),
+  /** 正在学习（视觉改版：首页 NowStrip 的 CURRENTLY LEARNING 行） */
+  currentlyLearning: z.array(z.string()).default([]),
+  /** 开放合作方向（视觉改版：首页 NowStrip 的 OPEN TO 行） */
+  openTo: z.array(z.string()).default([]),
   entries: z.array(nowEntrySchema).default([]),
 });

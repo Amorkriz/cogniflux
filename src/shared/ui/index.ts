@@ -25,6 +25,12 @@ export { Input, type InputProps } from "./Input";
 export { Separator, type SeparatorProps } from "./Separator";
 export { Skeleton, type SkeletonProps } from "./Skeleton";
 export {
+  StatusCapsule,
+  statusCapsuleVariants,
+  statusCapsuleDotVariants,
+  type StatusCapsuleProps,
+} from "./StatusCapsule";
+export {
   Tabs,
   TabsContent,
   TabsList,

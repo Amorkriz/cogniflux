@@ -112,7 +112,16 @@ graph TB
 3. 出现第二个消费方时，把 `src/domains/*/schema.ts` 抽到 `packages/content-schema`，原位置 re-export 保持兼容。
 4. Agent 后端以 `apps/agent-api` 新增，前端只把 `AgentGateway` 的实现从 mock 换成 fetch 版。
 
-## 8. 相关文档
+## 8. 看板娘 / TwinSparkBot 集成预留（视觉改版，未实施）
+
+本节只是设计预留，**当前不落任何代码/目录**（遵守“不建空目录/预防性抽象”红线）。
+
+- **挂载位约定**：首页 Hero 内预留 `<div id="companion-slot">` 空容器（由首页重构任务落地），作为看板娘形象的唯一挂载点；容器本身不影响布局与 LCP。
+- **懒加载 facade 设计**（届时实施）：形象运行时（如 Live2D）以动态 `import()` 拆独立 chunk，**首次用户交互（hover/click 挂载位）后才加载**，首屏零额外 JS；加载失败静默降级（挂载位保持空容器，不报错不占位）。
+- **触发条件**：正式集成时才新建 `src/services/live2d/`（facade + 加载器）；在那之前禁止建目录骨架。
+- **安全边界**：看板娘的对话能力必须走 `src/services/agent/` 的 AgentGateway 接口（当前为 mock，将来换 fetch 实现），**前端永不持有任何 Key/Token**，禁止在看板娘层直接调用 LLM SDK。
+
+## 9. 相关文档
 
 - [CONTENT.md](./CONTENT.md)：内容写作规范与 frontmatter 字段字典
 - [DESIGN.md](./DESIGN.md)：设计令牌与主题使用法

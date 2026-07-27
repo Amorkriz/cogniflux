@@ -1,6 +1,11 @@
 /** Agents 领域唯一公开出口（基线 §6）。 */
-export type { Agent, AgentStatus } from "./types";
-export { agentSchema, agentStatusSchema, agentDemoSchema } from "./schema";
+export type { Agent, AgentAccentTag, AgentStatus } from "./types";
+export {
+  agentSchema,
+  agentStatusSchema,
+  agentDemoSchema,
+  agentAccentTagSchema,
+} from "./schema";
 export {
   getAgents,
   getAgentBySlug,

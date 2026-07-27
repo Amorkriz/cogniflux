@@ -1,16 +1,18 @@
 import type { Route } from "./+types/index";
 import { getLabExperiments, LabExperimentCard } from "@/domains/lab";
-import { getSiteSettings } from "@/domains/site";
+import { getSiteSettings, sanitizeRelated } from "@/domains/site";
 import { PageHero } from "@/shared/components";
 import { Stagger } from "@/shared/motion";
 import { buildMeta } from "@/shared/seo";
 import { EmptyState, FlaskConical } from "@/shared/ui";
 
 export async function loader() {
-  const [site, experiments] = await Promise.all([
+  const [site, rawExperiments] = await Promise.all([
     getSiteSettings(),
     getLabExperiments(),
   ]);
+  // 序列化前净化 related，避免生产产物泄露 draft slug
+  const experiments = await sanitizeRelated(rawExperiments);
   return { site, experiments };
 }
 

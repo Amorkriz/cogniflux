@@ -50,6 +50,7 @@ export function getAgentReferenceRecords(): Promise<ReferenceRecord[]> {
     slug: agent.slug,
     title: agent.title,
     href: refHref("agent", agent.slug),
+    status: agent.status,
     related: agent.related,
   }));
   return Promise.resolve(records);

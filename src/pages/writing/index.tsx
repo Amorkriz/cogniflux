@@ -1,13 +1,15 @@
 import type { Route } from "./+types/index";
 import { ArticleCard, getArticles } from "@/domains/articles";
-import { getSiteSettings } from "@/domains/site";
+import { getSiteSettings, sanitizeRelated } from "@/domains/site";
 import { PageHero } from "@/shared/components";
 import { Stagger } from "@/shared/motion";
 import { buildMeta } from "@/shared/seo";
 import { EmptyState, PenLine } from "@/shared/ui";
 
 export async function loader() {
-  const [site, articles] = await Promise.all([getSiteSettings(), getArticles()]);
+  const [site, rawArticles] = await Promise.all([getSiteSettings(), getArticles()]);
+  // 序列化前净化 related，避免生产产物泄露 draft slug
+  const articles = await sanitizeRelated(rawArticles);
   return { site, articles };
 }
 

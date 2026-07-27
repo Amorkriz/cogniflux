@@ -13,6 +13,10 @@ export const projects = [
     createdAt: "2026-06-01",
     updatedAt: "2026-07-26",
     tags: ["react-router", "typescript", "mdx"],
+    cover: {
+      src: "/images/covers/cogniflux-platform.png",
+      alt: "Cogniflux 个人工作台项目封面：深蓝紫渐变占位图",
+    },
     featured: true,
     featuredOrder: 1,
     techStack: ["React Router v8", "Vite", "TypeScript", "Zod", "Tailwind CSS"],

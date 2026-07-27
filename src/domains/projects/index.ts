@@ -12,3 +12,7 @@ export {
   PROJECT_STATUS_VARIANT,
   formatPeriod,
 } from "./components/ProjectCard";
+export {
+  FeaturedProjectCard,
+  type FeaturedProjectCardProps,
+} from "./components/FeaturedProjectCard";

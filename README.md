@@ -4,7 +4,7 @@
 
 **技术栈**：React 19 · React Router v8（框架模式，prerender 静态输出）· Vite · TypeScript（strict）· Tailwind CSS v4（CSS-first + 设计令牌）· Motion · MDX + Zod · Vitest · pnpm
 
-内容以本地 MDX / TS 数据文件为源，经 Zod 构建期校验，通过领域 Repository 供页面消费；全站 prerender 输出静态 HTML（SEO 与 SSG 同级）。
+内容以本地 MDX / TS 数据文件为源，经 Zod 构建期校验，通过领域 Repository 供页面消费；全站 prerender 输出静态 HTML（SEO 与 SSG 同级）。视觉走「极简科技感 + 轻二次元 + 开发者工作台 + 游戏化 UI」方向（见下文）。
 
 ## 快速开始
 
@@ -45,6 +45,17 @@ docs/               # 项目文档 + ADR
 ```
 
 依赖方向：`pages → domains → shared`；页面禁止直接 import `content/**`（ESLint 强制）。
+
+## 视觉与设计系统
+
+- **双主题**：浅色为淡蓝紫渐变 + 网格/星点装饰的非纯白底；暗色为深蓝紫「夜间开发者工作台」。
+- **令牌扩展**：紫/青/橙/粉四色系语义令牌、glass 毛玻璃（白名单：导航胶囊 + 首页 NowStrip）、渐变边框、发光阴影、纯 CSS 装饰层。
+- **首页六模块**：Hero（身份陈述 + 开发者工作台装饰场景，预留看板娘挂载位 `#companion-slot`）→ 精选项目大卡 → 精选 Agents → 最新文章（首篇大卡）→ NOW BUILDING / CURRENTLY LEARNING / OPEN TO 状态条 → About/Contact。
+- **关键组件**：毛玻璃胶囊导航、StatusCapsule 游戏化状态胶囊、AgentCard、FeaturedProjectCard。
+- **数据模型**：Agent 新增 `accentTag`/`icon`（可选），Now 新增 `currentlyLearning`/`openTo`（字段字典见 [docs/CONTENT.md](./docs/CONTENT.md)）。
+- **质量**：Vitest 77 项测试，含双主题 WCAG AA 对比度自动化测试。
+
+令牌与装饰层使用规范见 [docs/DESIGN.md](./docs/DESIGN.md)（§8/§9）；看板娘 + TwinSparkBot 集成预留见 [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) §8。
 
 ## 文档索引
 

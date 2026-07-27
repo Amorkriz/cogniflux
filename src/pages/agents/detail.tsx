@@ -6,30 +6,40 @@ import {
   AgentStatusBadge,
   getAgentBySlug,
 } from "@/domains/agents";
-import { getReferencesTo, getSiteSettings, resolveRefs } from "@/domains/site";
+import {
+  getReferencesTo,
+  getSiteSettings,
+  resolveRefs,
+  sanitizeRelated,
+} from "@/domains/site";
 import { RelatedRefs } from "@/shared/components";
 import { FadeIn, SlideUp } from "@/shared/motion";
 import { buildMeta } from "@/shared/seo";
 import {
   ArrowLeft,
-  Badge,
   buttonVariants,
   Check,
   ExternalLink,
+  StatusCapsule,
   Tag,
 } from "@/shared/ui";
+import { cn } from "@/shared/utils";
+
+import type { AgentAccentTag } from "@/domains/agents";
 
 export async function loader({ params }: Route.LoaderArgs) {
   const agent = await getAgentBySlug(params.slug);
   if (!agent) {
     throw new Response("Not Found", { status: 404 });
   }
-  const [site, related, referencedBy] = await Promise.all([
+  const [site, related, referencedBy, [safeAgent]] = await Promise.all([
     getSiteSettings(),
     resolveRefs(agent.related),
     getReferencesTo({ kind: "agent", slug: agent.slug }),
+    // 序列化前净化 related，避免生产产物泄露 draft slug
+    sanitizeRelated([agent]),
   ]);
-  return { site, agent, related, referencedBy };
+  return { site, agent: safeAgent ?? agent, related, referencedBy };
 }
 
 export function meta({ loaderData: data }: Route.MetaArgs) {
@@ -47,7 +57,15 @@ export function meta({ loaderData: data }: Route.MetaArgs) {
   });
 }
 
-/** Agent 详情：role/状态徽章/能力/stack + demo 外链 + related/被引用反查 */
+/** accentTag → 标题旁色标背景（语义令牌）；缺省回退主 accent */
+const ACCENT_TAG_DOT: Record<AgentAccentTag, string> = {
+  purple: "bg-accent-secondary",
+  cyan: "bg-accent-tertiary",
+  warm: "bg-accent-warm",
+  pink: "bg-accent-pink",
+};
+
+/** Agent 详情：role/状态胶囊/能力/stack + demo 外链 + related/被引用反查 */
 export default function AgentDetail({ loaderData }: Route.ComponentProps) {
   const { agent, related, referencedBy } = loaderData;
 
@@ -63,13 +81,23 @@ export default function AgentDetail({ loaderData }: Route.ComponentProps) {
             返回 Agents
           </Link>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            {/* 呼吸点徽章：动效消费令牌且尊重 reduced-motion */}
+            {/* 状态胶囊（视觉改版 §六）：呼吸点动效尊重 reduced-motion */}
             <AgentStatusBadge status={agent.agentStatus} />
             {agent.status === "draft" ? (
-              <Badge variant="warning">DRAFT</Badge>
+              <StatusCapsule tone="warning" animated={false}>
+                DRAFT
+              </StatusCapsule>
             ) : null}
           </div>
-          <h1 className="mt-3 max-w-prose-container text-3xl font-bold tracking-tight text-primary sm:text-4xl">
+          {/* accentTag 色标（视觉改版 §六）：纯装饰，缺省回退主 accent */}
+          <h1 className="mt-3 flex max-w-prose-container items-center gap-3 text-3xl font-bold tracking-tight text-primary sm:text-4xl">
+            <span
+              aria-hidden="true"
+              className={cn(
+                "size-3 shrink-0 rounded-full",
+                agent.accentTag ? ACCENT_TAG_DOT[agent.accentTag] : "bg-accent",
+              )}
+            />
             {agent.title}
           </h1>
           <p className="mt-2 font-mono text-sm text-tertiary">{agent.role}</p>

@@ -13,8 +13,12 @@
 |---|---|
 | 背景三层级 | `--bg-base` / `--bg-surface` / `--bg-raised` |
 | 文本 | `--text-primary` / `--text-secondary` / `--text-tertiary` / `--text-inverse` |
-| 边框 | `--border-default` / `--border-strong` |
+| 边框 | `--border-default` / `--border-strong`（`bg-strong` 背景用途见 §4 备注） |
 | 强调色 | `--accent` / `--accent-hover` |
+| 辅助强调色（视觉改版） | `--accent-secondary`（紫）/ `--accent-tertiary`（青）/ `--accent-warm`（橙）/ `--accent-pink` |
+| 装饰背景（视觉改版） | `--bg-hero`（极淡蓝紫线性渐变）/ `--bg-grid-line`（网格线色）/ `--bg-glow`（径向光晕） |
+| 毛玻璃（视觉改版） | `--glass-bg` / `--glass-border` / `--glass-blur`（10px） |
+| 发光与渐变边框（视觉改版） | `--shadow-glow`（强调色发光阴影）/ `--gradient-border`（conic 蓝→紫→青→蓝） |
 | 功能色 | `--success` / `--warning` / `--danger` / `--info` |
 | 形状 | `--radius-card` / `--radius-control` |
 | 阴影 | `--shadow-card` / `--shadow-overlay` |
@@ -58,15 +62,19 @@ CSS-first，无 `tailwind.config.js`。`src/styles/globals.css`：
 | `bg-base` / `bg-surface` / `bg-raised` | 背景三层级 |
 | `text-primary` / `text-secondary` / `text-tertiary` / `text-inverse` | 文本 |
 | `border-default` / `border-strong` | 边框 |
+| `bg-strong` | 边框强色的合法背景用途：**仅用于小型状态点/分隔类元素的背景填充**（如 StatusCapsule neutral 呼吸点），禁止用作卡片/容器等大面积背景 |
 | `text-accent` / `bg-accent` / `hover:bg-accent-hover` | 强调色 |
+| `text-accent-secondary` / `text-accent-tertiary` / `text-accent-warm` / `text-accent-pink`（及同名 `bg-*` / `border-*`） | 辅助强调色（视觉改版） |
+| `bg-hero` / `bg-glow` | 装饰渐变背景（`@utility` 注册，非 `--color-*` 命名空间） |
 | `text-success` / `text-warning` / `text-danger` / `text-info` | 功能色 |
 | `rounded-card` / `rounded-control` | 形状 |
-| `shadow-card` / `shadow-overlay` | 阴影 |
+| `shadow-card` / `shadow-overlay` / `shadow-glow` | 阴影（glow 为视觉改版强调发光） |
 | `bg-scrim` | 覆盖层遮罩 |
 | `py-section` / `gap-block` | 节奏 |
 | `max-w-prose-container` / `max-w-page` | 容器 |
 | `font-sans` / `font-mono` | 字体 |
 | `animate-overlay-in/out`、`animate-pop-in/out`、`animate-dialog-in/out`、`animate-breathe` | 覆盖层/呼吸点动画（时长/缓动来自动效令牌） |
+| `animate-float`（只动 transform，±8px 浮动）/ `animate-pulse-glow`（只动 opacity，呼吸发光） | 装饰动效（视觉改版，配 `motion-reduce:animate-none`） |
 
 dark 变体由 `data-theme` 驱动（而非 `prefers-color-scheme`），写法照常：`dark:...`（大多数场景因令牌自动切换而无需 dark: 前缀）。
 
@@ -95,3 +103,52 @@ dark 变体由 `data-theme` 驱动（而非 `prefers-color-scheme`），写法�
 - 类名合并统一用 `cn()`（`src/shared/utils/cn.ts`，clsx + tailwind-merge）。
 - 超过 ~6 个工具类的重复组合应提炼为组件而非复制粘贴；props >8 或出现 `type/mode` 开关分叉渲染时必须拆分组件。
 - Props 类型命名 `XxxProps` 并导出；每层目录 `index.ts` 定义公开边界（`shared/ui/index.ts`、`shared/components/index.ts`）。
+
+## 8. 装饰层规范（视觉改版，`src/styles/decorations.css`）
+
+装饰样式集中在 `decorations.css`（由 `globals.css` `@import`），全部纯 CSS gradient，**禁止图片 / JS / Canvas**。
+
+### 硬性约束
+
+- 装饰元素必须 `aria-hidden="true"`，不承载任何内容、不进入关键渲染路径（不得成为 LCP 元素）。
+- `data-decor` 取值白名单：`grid` | `stars`，新增取值必须同步本表与 `.qoder/rules/design-tokens.md`。
+- 装饰动效只动 `transform/opacity`，时长/缓动只用动效令牌，必须配 `motion-reduce:animate-none`。
+
+### 装饰类清单与用法
+
+| 类/属性 | 用途 | 降级策略 |
+|---|---|---|
+| `[data-decor="grid"]` | 纯 CSS repeating-linear-gradient 网格底纹（用 `--bg-grid-line`，格距 `--space-12`） | 无需降级（纯装饰） |
+| `[data-decor="stars"]` | 多层 radial-gradient 星点点缀 | 无需降级（纯装饰） |
+| `.glass` | 毛玻璃：`backdrop-filter: blur(var(--glass-blur))` + `--glass-bg`/`--glass-border`，使用面受下方白名单约束 | `@supports not (backdrop-filter)` 时退回高不透明 `--bg-surface` 纯色背景 |
+| `.gradient-border-card` | hover/focus-within 渐变描边：伪元素铺 `--gradient-border` + 双层 mask 只露 1px 边框，只动 opacity | `prefers-reduced-motion` 下无过渡（状态切换仍生效） |
+
+### `.glass` 使用白名单
+
+`backdrop-filter` 合成成本高，使用面必须收敛。**仅限：站点导航胶囊（`SiteHeader`）、首页 NowStrip 卡片（静态主卡，不动画）；新增使用场景须先修订本白名单**（并同步 `.qoder/rules/design-tokens.md`）。禁止与 `animate-float` 等持续动画组合（浮动 + blur 是合成成本最高的组合）；首页 hero 浮动装饰小卡一律用普通 surface 卡样式（`rounded-card border border-default bg-surface shadow-card`）。
+
+用法示例：
+
+```tsx
+{/* 装饰背景层：必须 aria-hidden，绝对定位于内容之后 */}
+<div aria-hidden="true" data-decor="grid" className="absolute inset-0" />
+
+{/* 毛玻璃导航胶囊 */}
+<nav className="glass rounded-control">…</nav>
+
+{/* 渐变边框卡片：宿主需有 border-radius（伪元素 inherit） */}
+<article className="gradient-border-card rounded-card bg-surface">…</article>
+```
+
+### 对比度基线（视觉改版后，全部 ≥4.5:1 WCAG AA）
+
+- light：`--text-secondary` 上调为 `--gray-700`（on `--bg-base` ≈ 10.0:1）；辅助强调色 600 档均 ≥4.5:1（详见 `themes/light.css` 注释）。
+- dark：基底调为深蓝紫（`#12121e` / `#1a1a2b` / `#242438`）；`--text-secondary` 上调为 `--gray-300`（on `--bg-base` ≈ 12.6:1）；辅助强调色 400 档均 ≥6.5:1（详见 `themes/dark.css` 注释）。
+
+## 9. Badge 与 StatusCapsule 使用边界
+
+两类状态展示组件分工明确，**同一场景勿混用**：
+
+- **Badge / Tag**：领域/内容状态与分类标记——draft、lab outcome、projectStatus、分类/标签等。默认选择。
+- **StatusCapsule**：游戏化/仪表盘式状态胶囊（大写等宽 + 呼吸点）——Agent 运行状态、首页 NowStrip、装饰性状态面板。
+- 领域状态 → StatusCapsule 的映射目前仅有一处：`AgentStatusBadge`（AgentStatus → StatusCapsule 的唯一映射）；其他领域状态请继续用 Badge/Tag，新增映射须先修订本节。

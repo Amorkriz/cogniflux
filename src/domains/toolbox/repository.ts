@@ -46,6 +46,7 @@ export function getToolReferenceRecords(): Promise<ReferenceRecord[]> {
     slug: tool.slug,
     title: tool.title,
     href: refHref("tool", tool.slug),
+    status: tool.status,
     related: [],
   }));
   return Promise.resolve(records);

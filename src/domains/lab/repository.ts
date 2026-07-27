@@ -63,6 +63,7 @@ export function getLabReferenceRecords(): Promise<ReferenceRecord[]> {
     slug: experiment.slug,
     title: experiment.title,
     href: refHref("lab", experiment.slug),
+    status: experiment.status,
     related: experiment.related,
   }));
   return Promise.resolve(records);

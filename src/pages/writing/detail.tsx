@@ -8,7 +8,12 @@ import {
   getArticles,
 } from "@/domains/articles";
 import { getProfile } from "@/domains/profile";
-import { getReferencesTo, getSiteSettings, resolveRefs } from "@/domains/site";
+import {
+  getReferencesTo,
+  getSiteSettings,
+  resolveRefs,
+  sanitizeRelated,
+} from "@/domains/site";
 import { Prose, RelatedRefs } from "@/shared/components";
 import { FadeIn, SlideUp } from "@/shared/motion";
 import { blogPostingJsonLd, buildMeta } from "@/shared/seo";
@@ -32,20 +37,23 @@ export async function loader({ params }: Route.LoaderArgs) {
     throw new Response("Not Found", { status: 404 });
   }
   const { article, headings } = detail;
-  const [site, related, referencedBy, articles, profile] = await Promise.all([
-    getSiteSettings(),
-    resolveRefs(article.related),
-    getReferencesTo({ kind: "article", slug: article.slug }),
-    getArticles(),
-    getProfile(),
-  ]);
+  const [site, related, referencedBy, articles, profile, [safeArticle]] =
+    await Promise.all([
+      getSiteSettings(),
+      resolveRefs(article.related),
+      getReferencesTo({ kind: "article", slug: article.slug }),
+      getArticles(),
+      getProfile(),
+      // 序列化前净化 related，避免生产产物泄露 draft slug
+      sanitizeRelated([article]),
+    ]);
   const index = articles.findIndex((item) => item.slug === article.slug);
   const newer = index > 0 ? articles[index - 1] : undefined;
   const older =
     index >= 0 && index < articles.length - 1 ? articles[index + 1] : undefined;
   return {
     site,
-    article,
+    article: safeArticle ?? article,
     headings,
     related,
     referencedBy,

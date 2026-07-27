@@ -1,0 +1,127 @@
+/* ============================================================
+ * Cogniflux 装饰层样式（视觉改版方案 §一）
+ * 约束（DESIGN.md / .qoder/rules/design-tokens.md 同源）：
+ *   - 全部纯 CSS gradient，禁止图片 / JS / Canvas
+ *   - 装饰元素必须 aria-hidden="true"，不承载内容、不进关键渲染路径
+ *   - data-decor 取值白名单：grid | stars
+ *   - 动效只动 transform/opacity，时长/缓动只用动效令牌
+ * ============================================================ */
+
+/* 网格背景（用途：Hero / PageHero 的开发者工作台底纹）：
+ * 双向 repeating-linear-gradient 画 1px 网格线，颜色随主题
+ * 由 --bg-grid-line 切换，格距用间距令牌（--space-12 = 48px） */
+[data-decor="grid"] {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      var(--bg-grid-line) 0,
+      var(--bg-grid-line) 1px,
+      transparent 1px,
+      transparent var(--space-12)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      var(--bg-grid-line) 0,
+      var(--bg-grid-line) 1px,
+      transparent 1px,
+      transparent var(--space-12)
+    );
+}
+
+/* 星点背景（用途：Hero 轻二次元氛围点缀）：
+ * 多层 radial-gradient 星点，两种尺寸错落分布；
+ * 颜色取辅助强调色的低透明度版本，随主题自动切换 */
+[data-decor="stars"] {
+  background-image:
+    radial-gradient(
+      1.5px 1.5px at 12% 24%,
+      var(--accent-secondary) 50%,
+      transparent 51%
+    ),
+    radial-gradient(1px 1px at 28% 68%, var(--accent) 50%, transparent 51%),
+    radial-gradient(
+      1.5px 1.5px at 44% 12%,
+      var(--accent-tertiary) 50%,
+      transparent 51%
+    ),
+    radial-gradient(
+      1px 1px at 58% 46%,
+      var(--accent-secondary) 50%,
+      transparent 51%
+    ),
+    radial-gradient(
+      1.5px 1.5px at 72% 78%,
+      var(--accent) 50%,
+      transparent 51%
+    ),
+    radial-gradient(
+      1px 1px at 84% 30%,
+      var(--accent-tertiary) 50%,
+      transparent 51%
+    ),
+    radial-gradient(
+      1px 1px at 92% 62%,
+      var(--accent-pink) 50%,
+      transparent 51%
+    ),
+    radial-gradient(1px 1px at 6% 82%, var(--accent) 50%, transparent 51%);
+  opacity: 0.35;
+}
+
+/* 毛玻璃（用途：悬浮导航胶囊 / 玻璃卡片变体）：
+ * backdrop-filter + 半透明底与描边，令牌见 --glass-* */
+.glass {
+  background-color: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+}
+
+/* 降级：不支持 backdrop-filter 的旧设备退回高不透明纯色背景，
+ * 保证文本对比度不受背后内容影响 */
+@supports not (backdrop-filter: blur(1px)) {
+  .glass {
+    background-color: var(--bg-surface);
+  }
+}
+
+/* 渐变边框卡片（用途：卡片 hover/focus 的蓝→紫→青流光描边）：
+ * 双背景方案——伪元素铺 --gradient-border（conic），
+ * 用双层 mask（content-box XOR 全区）只露出 1px 边框区域，
+ * 圆角经 border-radius: inherit 完整保留；
+ * 常态 opacity 0，hover / focus-within 过渡到 1（只动 opacity） */
+.gradient-border-card {
+  position: relative;
+}
+
+.gradient-border-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--gradient-border);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity var(--motion-base) var(--ease-out);
+  pointer-events: none;
+}
+
+.gradient-border-card:hover::before,
+.gradient-border-card:focus-within::before {
+  opacity: 1;
+}
+
+/* reduced-motion：直接无过渡（状态切换仍生效，但不做动画） */
+@media (prefers-reduced-motion: reduce) {
+  .gradient-border-card::before {
+    transition: none;
+  }
+}

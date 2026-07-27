@@ -7,7 +7,12 @@ import {
   PROJECT_STATUS_LABEL,
   PROJECT_STATUS_VARIANT,
 } from "@/domains/projects";
-import { getReferencesTo, getSiteSettings, resolveRefs } from "@/domains/site";
+import {
+  getReferencesTo,
+  getSiteSettings,
+  resolveRefs,
+  sanitizeRelated,
+} from "@/domains/site";
 import { RelatedRefs, Timeline, TimelineItem } from "@/shared/components";
 import { FadeIn, SlideUp } from "@/shared/motion";
 import { buildMeta } from "@/shared/seo";
@@ -17,6 +22,7 @@ import {
   buttonVariants,
   Check,
   ExternalLink,
+  GitBranch,
   Tag,
 } from "@/shared/ui";
 
@@ -25,12 +31,14 @@ export async function loader({ params }: Route.LoaderArgs) {
   if (!project) {
     throw new Response("Not Found", { status: 404 });
   }
-  const [site, related, referencedBy] = await Promise.all([
+  const [site, related, referencedBy, [safeProject]] = await Promise.all([
     getSiteSettings(),
     resolveRefs(project.related),
     getReferencesTo({ kind: "project", slug: project.slug }),
+    // 序列化前净化 related，避免生产产物泄露 draft slug
+    sanitizeRelated([project]),
   ]);
-  return { site, project, related, referencedBy };
+  return { site, project: safeProject ?? project, related, referencedBy };
 }
 
 export function meta({ loaderData: data }: Route.MetaArgs) {
@@ -48,19 +56,9 @@ export function meta({ loaderData: data }: Route.MetaArgs) {
   });
 }
 
-/** 外链标签（links 字段 → 展示文案） */
-const LINK_LABEL: Record<string, string> = {
-  repo: "代码仓库",
-  demo: "在线演示",
-  docs: "项目文档",
-};
-
-/** 项目详情：highlights/时间线/links + related/被引用反查 */
+/** 项目详情：封面/highlights/时间线/links + related/被引用反查 */
 export default function ProjectDetail({ loaderData }: Route.ComponentProps) {
   const { project, related, referencedBy } = loaderData;
-  const links = Object.entries(project.links).filter(
-    (entry): entry is [string, string] => Boolean(entry[1]),
-  );
 
   return (
     <div className="mx-auto max-w-page px-4 py-section sm:px-6">
@@ -73,6 +71,14 @@ export default function ProjectDetail({ loaderData }: Route.ComponentProps) {
             <ArrowLeft aria-hidden="true" className="size-4" />
             返回 Projects
           </Link>
+          {/* 封面图（视觉改版 §六）：aspect-video 固定宽高比防 CLS */}
+          {project.cover ? (
+            <img
+              src={project.cover.src}
+              alt={project.cover.alt}
+              className="mt-6 aspect-video w-full rounded-card border border-default object-cover"
+            />
+          ) : null}
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <Badge variant={PROJECT_STATUS_VARIANT[project.projectStatus]}>
               {PROJECT_STATUS_LABEL[project.projectStatus]}
@@ -95,23 +101,45 @@ export default function ProjectDetail({ loaderData }: Route.ComponentProps) {
               <Tag key={tech}>{tech}</Tag>
             ))}
           </div>
-          {links.length > 0 ? (
+          {/* 入口按钮组（视觉改版 §六）：主次层级——在线演示主按钮，仓库/文档次按钮 */}
+          {project.links.demo || project.links.repo || project.links.docs ? (
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              {links.map(([key, url]) => (
+              {project.links.demo ? (
                 <a
-                  key={key}
-                  href={url}
+                  href={project.links.demo}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={buttonVariants({
-                    variant: key === "repo" ? "primary" : "secondary",
-                  })}
+                  className={buttonVariants({ variant: "primary" })}
                 >
-                  {LINK_LABEL[key] ?? key}
+                  在线演示
                   <ExternalLink aria-hidden="true" />
                   <span className="sr-only">（新窗口打开）</span>
                 </a>
-              ))}
+              ) : null}
+              {project.links.repo ? (
+                <a
+                  href={project.links.repo}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({ variant: "secondary" })}
+                >
+                  <GitBranch aria-hidden="true" />
+                  代码仓库
+                  <span className="sr-only">（新窗口打开）</span>
+                </a>
+              ) : null}
+              {project.links.docs ? (
+                <a
+                  href={project.links.docs}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({ variant: "secondary" })}
+                >
+                  项目文档
+                  <ExternalLink aria-hidden="true" />
+                  <span className="sr-only">（新窗口打开）</span>
+                </a>
+              ) : null}
             </div>
           ) : null}
         </header>

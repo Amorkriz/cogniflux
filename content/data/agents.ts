@@ -21,6 +21,8 @@ export const agents = [
     ],
     stack: ["TypeScript", "AST 分析", "工具调用"],
     agentStatus: "building",
+    accentTag: "purple",
+    icon: "bot",
     demo: { type: "link", src: "https://cogniflux.example.com/agents/refactor-navigator" },
     related: [{ kind: "project", slug: "flux-agent-runtime" }],
   },
@@ -36,6 +38,8 @@ export const agents = [
     capabilities: ["差异摘要", "风险点标注", "给出可复制的修改片段"],
     stack: ["TypeScript", "Git Diff", "规则引擎"],
     agentStatus: "usable",
+    accentTag: "cyan",
+    icon: "git-pull-request",
     related: [],
   },
 ] as const;

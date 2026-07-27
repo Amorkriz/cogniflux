@@ -3,6 +3,7 @@
 @import "./tokens.css";
 @import "./themes/light.css";
 @import "./themes/dark.css";
+@import "./decorations.css";
 
 /* dark 变体由 data-theme 驱动（而非 prefers-color-scheme） */
 @custom-variant dark ([data-theme="dark"] &);
@@ -32,6 +33,12 @@
   /* 强调与功能色：text-accent / bg-accent / hover:bg-accent-hover … */
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  /* 辅助强调色（视觉改版）：text-accent-secondary / text-accent-tertiary /
+   * text-accent-warm / text-accent-pink（及同名 bg-* / border-*） */
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-tertiary: var(--accent-tertiary);
+  --color-accent-warm: var(--accent-warm);
+  --color-accent-pink: var(--accent-pink);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
@@ -42,9 +49,10 @@
   --radius-card: var(--radius-card);
   --radius-control: var(--radius-control);
 
-  /* 阴影：shadow-card / shadow-overlay */
+  /* 阴影：shadow-card / shadow-overlay / shadow-glow（视觉改版：强调发光） */
   --shadow-card: var(--shadow-card);
   --shadow-overlay: var(--shadow-overlay);
+  --shadow-glow: var(--shadow-glow);
 
   /* 遮罩：bg-scrim（覆盖层背后的 scrim） */
   --color-scrim: var(--overlay-scrim);
@@ -79,6 +87,23 @@
    * reduced-motion 时由 motion-reduce:animate-none 关闭 */
   --animate-breathe: breathe calc(var(--motion-narrative) * 4) var(--ease-out)
     infinite;
+
+  /* 装饰动效（视觉改版）：animate-float（只动 transform，浮动 ±8px）与
+   * animate-pulse-glow（只动 opacity，呼吸发光）；时长均由动效令牌派生，
+   * reduced-motion 时由 motion-reduce:animate-none 关闭 */
+  --animate-float: float calc(var(--motion-narrative) * 6) var(--ease-out)
+    infinite;
+  --animate-pulse-glow: pulse-glow calc(var(--motion-narrative) * 4)
+    var(--ease-out) infinite;
+}
+
+/* 装饰背景工具类（渐变为 background-image，不属于 --color-* 命名空间，
+ * 故用 @utility 注册）：bg-hero / bg-glow */
+@utility bg-hero {
+  background-image: var(--bg-hero);
+}
+@utility bg-glow {
+  background-image: var(--bg-glow);
 }
 
 @keyframes breathe {
@@ -88,6 +113,28 @@
   }
   50% {
     opacity: 0.35;
+  }
+}
+
+/* 装饰浮动（只动 transform）：Hero 装饰卡片错峰漂浮 */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* 发光呼吸（只动 opacity）：Agent 节点 / 状态点的光晕呈现 */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
   }
 }
 

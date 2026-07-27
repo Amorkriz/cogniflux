@@ -76,13 +76,14 @@ export function getArticleBySlug(
   return Promise.resolve(detail);
 }
 
-/** 反向关联索引单元（构建期扫描全量 related，不过滤 draft） */
+/** 反向关联索引单元（构建期扫描全量 related，携带 status 供聚合器按可见性过滤） */
 export function getArticleReferenceRecords(): Promise<ReferenceRecord[]> {
   const records = buildAll().map(({ article }) => ({
     kind: "article" as const,
     slug: article.slug,
     title: article.title,
     href: refHref("article", article.slug),
+    status: article.status,
     related: article.related,
   }));
   return Promise.resolve(records);

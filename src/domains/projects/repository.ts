@@ -51,6 +51,7 @@ export function getProjectReferenceRecords(): Promise<ReferenceRecord[]> {
     slug: project.slug,
     title: project.title,
     href: refHref("project", project.slug),
+    status: project.status,
     related: project.related,
   }));
   return Promise.resolve(records);

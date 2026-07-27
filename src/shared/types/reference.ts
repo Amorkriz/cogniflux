@@ -4,7 +4,7 @@
  * （带 title/href），反向索引由构建期扫描 ReferenceRecord 生成。
  * 放在 shared 层：所有领域共用，且不产生对 domains 的反向依赖。
  */
-import type { ContentRef } from "./base";
+import type { ContentRef, ContentStatus } from "./base";
 
 export type ContentKind = ContentRef["kind"];
 
@@ -16,8 +16,9 @@ export interface ResolvedRef {
   href: string;
 }
 
-/** 构建期反向关联索引的单元：解析结果 + 其正向 related 列表 */
+/** 构建期反向关联索引的单元：解析结果 + 可见性状态 + 其正向 related 列表 */
 export interface ReferenceRecord extends ResolvedRef {
+  status: ContentStatus;
   related: ContentRef[];
 }
 

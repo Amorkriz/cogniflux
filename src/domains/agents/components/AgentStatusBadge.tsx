@@ -1,27 +1,27 @@
-import { cn } from "@/shared/utils";
+import { StatusCapsule, type StatusCapsuleProps } from "@/shared/ui";
 
 import type { AgentStatus } from "../types";
 
-/** Agent 状态展示标签与语义色（agentStatus 驱动徽章，基线 §7） */
+/**
+ * Agent 状态展示文案（视觉改版：游戏化大写等宽标签；领域词汇归领域，基线 §10）。
+ * agents/detail.tsx 的正文引用同步呈现该文案。
+ */
 export const AGENT_STATUS_LABEL: Record<AgentStatus, string> = {
-  concept: "构想中",
-  building: "构建中",
-  usable: "可用",
-  retired: "已退役",
+  concept: "CONCEPT",
+  building: "BUILDING",
+  usable: "ONLINE",
+  retired: "ARCHIVED",
 };
 
-const DOT_COLOR: Record<AgentStatus, string> = {
-  concept: "bg-info",
-  building: "bg-warning",
-  usable: "bg-success",
-  retired: "bg-strong",
-};
-
-const TEXT_COLOR: Record<AgentStatus, string> = {
-  concept: "text-info",
-  building: "text-warning",
-  usable: "text-success",
-  retired: "text-tertiary",
+/** 状态 → StatusCapsule tone（语义令牌色一律经共享层胶囊消费） */
+const STATUS_TONE: Record<
+  AgentStatus,
+  NonNullable<StatusCapsuleProps["tone"]>
+> = {
+  concept: "neutral",
+  building: "warning",
+  usable: "success",
+  retired: "neutral",
 };
 
 /** 呼吸点只给“活着”的状态（构建中/可用）；退役与构想为静态点 */
@@ -38,28 +38,21 @@ export interface AgentStatusBadgeProps {
 }
 
 /**
- * Agent 状态徽章（基线 §11 领域专属动效）：呼吸点消费动效令牌
- * （animate-breathe，时长派生自 --motion-narrative），
- * reduced-motion 时经 motion-reduce:animate-none 静止呈现。
+ * Agent 状态徽章（视觉改版）：内部委托 shared/ui StatusCapsule 渲染，
+ * 本组件只保留 agents 领域的状态→文案/tone/呼吸映射。
+ * 【使用边界】本组件是 AgentStatus → StatusCapsule 的唯一映射
+ * （docs/DESIGN.md §9）；其他领域状态（draft、outcome、projectStatus 等）
+ * 请继续用 Badge/Tag，勿新增领域状态到 StatusCapsule 的映射。
+ * reduced-motion 时呼吸点经 motion-reduce:animate-none 静止呈现。
  */
 export function AgentStatusBadge({ status, className }: AgentStatusBadgeProps) {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border border-default bg-surface px-2.5 py-0.5 text-xs font-medium",
-        TEXT_COLOR[status],
-        className,
-      )}
+    <StatusCapsule
+      tone={STATUS_TONE[status]}
+      animated={BREATHING[status]}
+      className={className}
     >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "size-1.5 rounded-full",
-          DOT_COLOR[status],
-          BREATHING[status] ? "animate-breathe motion-reduce:animate-none" : "",
-        )}
-      />
       {AGENT_STATUS_LABEL[status]}
-    </span>
+    </StatusCapsule>
   );
 }

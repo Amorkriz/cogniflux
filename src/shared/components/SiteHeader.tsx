@@ -16,13 +16,16 @@ export interface SiteHeaderProps {
 }
 
 /**
- * 站点顶栏：logo + 桌面横向导航（当前路由下划线过渡）+ 主题切换 +
+ * 站点顶栏（视觉改版：毛玻璃悬浮胶囊导航）：sticky 悬浮，内容容器为
+ * 圆角胶囊 + .glass（含 @supports 纯色降级）+ 轻阴影；
+ * logo + 桌面横向导航（当前路由下划线过渡）+ 主题切换 +
  * 移动端菜单按钮（lg 以下显示，8 栏目桌面横排需要 lg 宽度）。
+ * header 本体 pointer-events-none，胶囊两侧空白不遮挡下方内容点击。
  */
 export function SiteHeader({ items }: SiteHeaderProps) {
   return (
-    <header className="sticky top-0 z-(--z-sticky) border-b border-default bg-base/90 backdrop-blur-sm">
-      <div className="mx-auto flex h-16 max-w-page items-center justify-between gap-4 px-4 sm:px-6">
+    <header className="pointer-events-none sticky top-0 z-(--z-sticky) px-4 pt-3 sm:px-6">
+      <div className="glass pointer-events-auto mx-auto flex h-14 max-w-page items-center justify-between gap-4 rounded-full px-4 shadow-card sm:px-6">
         <Link
           to="/"
           className="rounded-control font-mono text-lg font-semibold tracking-tight text-primary"

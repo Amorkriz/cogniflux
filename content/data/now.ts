@@ -12,6 +12,8 @@ export const nowUpdates = [
     date: "2026-07",
     tags: ["now"],
     focus: ["搭建个人工作台", "多 Agent 编排实验"],
+    currentlyLearning: ["Agent Memory", "RAG"],
+    openTo: ["AI 应用开发合作"],
     entries: [
       {
         category: "building",

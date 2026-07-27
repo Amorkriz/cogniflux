@@ -1,0 +1,2204 @@
+diff --git a/.qoder/rules/design-tokens.md b/.qoder/rules/design-tokens.md
+index e5b033a..a65d434 100644
+--- a/.qoder/rules/design-tokens.md
++++ b/.qoder/rules/design-tokens.md
+@@ -8,11 +8,18 @@ globs: src/**/*.tsx,src/**/*.css
+ ## 语义令牌红线
+ 
+ - 业务组件禁止裸色值/像素值/动画参数：`#3b82f6`、`bg-blue-500`、`w-[137px]`、`duration-300`、自写 cubic-bezier 一律不允许。
+-- 只用语义令牌类名：`bg-base/surface/raised`、`text-primary/secondary/tertiary/inverse`、`border-default/strong`、`text-accent`、`rounded-card/control`、`shadow-card/overlay`、`py-section`、`gap-block`、`max-w-prose-container/page`。
+-- 禁止直用 Primitive 令牌（`var(--gray-*)`、`var(--brand-*)`、`--space-*`、`--radius-1…4`）。令牌唯一来源 `src/styles/tokens.css`；新增令牌先加 Semantic 层再消费。
++- 只用语义令牌类名：`bg-base/surface/raised`、`text-primary/secondary/tertiary/inverse`、`border-default/strong`、`text-accent`、`text-accent-secondary/tertiary/warm/pink`（及同名 bg-*/border-*）、`bg-hero`、`bg-glow`、`rounded-card/control`、`shadow-card/overlay/glow`、`py-section`、`gap-block`、`max-w-prose-container/page`。
++- 禁止直用 Primitive 令牌（`var(--gray-*)`、`var(--brand-*)`、`var(--purple/cyan/orange/pink-*)`、`--space-*`、`--radius-1…4`）。令牌唯一来源 `src/styles/tokens.css`；新增令牌先加 Semantic 层再消费。
+ - 主题 = `[data-theme]` 下覆盖 Semantic 变量（参照 `src/styles/themes/dark.css`）；dark 变体由 `data-theme` 驱动，多数场景令牌自动切换、无需 `dark:` 前缀。
+ - `@apply` 只允许用于 `.prose` 等设计系统底层（`globals.css`），禁止写页面级样式。
+ 
++## 装饰层白名单（src/styles/decorations.css，视觉改版）
++
++- 装饰类仅限：`[data-decor="grid"]`、`[data-decor="stars"]`、`.glass`、`.gradient-border-card`；`data-decor` 新增取值必须同步本白名单与 `docs/DESIGN.md` §8。
++- 装饰元素必须 `aria-hidden="true"`，纯 CSS gradient（禁图片/JS），不进入关键渲染路径。
++- `.glass` 必须保留 `@supports not (backdrop-filter)` 纯色降级；`.gradient-border-card` 只动 opacity，reduced-motion 下无过渡。
++- 装饰动效工具类：`animate-float`（transform）/ `animate-pulse-glow`（opacity），必须配 `motion-reduce:animate-none`。
++
+ ## CVA 规范
+ 
+ - 组件变体集中在 CVA 声明，禁止 JSX 手拼条件类名分叉；类名合并统一 `cn()`（`src/shared/utils/cn.ts`）。
+diff --git a/content/data/agents.ts b/content/data/agents.ts
+index c9be2cd..8d27978 100644
+--- a/content/data/agents.ts
++++ b/content/data/agents.ts
+@@ -21,6 +21,8 @@ export const agents = [
+     ],
+     stack: ["TypeScript", "AST 分析", "工具调用"],
+     agentStatus: "building",
++    accentTag: "purple",
++    icon: "bot",
+     demo: { type: "link", src: "https://cogniflux.example.com/agents/refactor-navigator" },
+     related: [{ kind: "project", slug: "flux-agent-runtime" }],
+   },
+@@ -36,6 +38,8 @@ export const agents = [
+     capabilities: ["差异摘要", "风险点标注", "给出可复制的修改片段"],
+     stack: ["TypeScript", "Git Diff", "规则引擎"],
+     agentStatus: "usable",
++    accentTag: "cyan",
++    icon: "git-pull-request",
+     related: [],
+   },
+ ] as const;
+diff --git a/content/data/now.ts b/content/data/now.ts
+index e974671..bec3dc4 100644
+--- a/content/data/now.ts
++++ b/content/data/now.ts
+@@ -12,6 +12,8 @@ export const nowUpdates = [
+     date: "2026-07",
+     tags: ["now"],
+     focus: ["搭建个人工作台", "多 Agent 编排实验"],
++    currentlyLearning: ["Agent Memory", "RAG"],
++    openTo: ["AI 应用开发合作"],
+     entries: [
+       {
+         category: "building",
+diff --git a/content/data/projects.ts b/content/data/projects.ts
+index 2f27b33..2f328cf 100644
+--- a/content/data/projects.ts
++++ b/content/data/projects.ts
+@@ -13,6 +13,10 @@ export const projects = [
+     createdAt: "2026-06-01",
+     updatedAt: "2026-07-26",
+     tags: ["react-router", "typescript", "mdx"],
++    cover: {
++      src: "/images/covers/cogniflux-platform.png",
++      alt: "Cogniflux 个人工作台项目封面：深蓝紫渐变占位图",
++    },
+     featured: true,
+     featuredOrder: 1,
+     techStack: ["React Router v8", "Vite", "TypeScript", "Zod", "Tailwind CSS"],
+diff --git a/docs/ARCHITECTURE.md b/docs/ARCHITECTURE.md
+index 7daf743..a2e8a1e 100644
+--- a/docs/ARCHITECTURE.md
++++ b/docs/ARCHITECTURE.md
+@@ -112,7 +112,16 @@ graph TB
+ 3. 出现第二个消费方时，把 `src/domains/*/schema.ts` 抽到 `packages/content-schema`，原位置 re-export 保持兼容。
+ 4. Agent 后端以 `apps/agent-api` 新增，前端只把 `AgentGateway` 的实现从 mock 换成 fetch 版。
+ 
+-## 8. 相关文档
++## 8. 看板娘 / TwinSparkBot 集成预留（视觉改版，未实施）
++
++本节只是设计预留，**当前不落任何代码/目录**（遵守“不建空目录/预防性抽象”红线）。
++
++- **挂载位约定**：首页 Hero 内预留 `<div id="companion-slot">` 空容器（由首页重构任务落地），作为看板娘形象的唯一挂载点；容器本身不影响布局与 LCP。
++- **懒加载 facade 设计**（届时实施）：形象运行时（如 Live2D）以动态 `import()` 拆独立 chunk，**首次用户交互（hover/click 挂载位）后才加载**，首屏零额外 JS；加载失败静默降级（挂载位保持空容器，不报错不占位）。
++- **触发条件**：正式集成时才新建 `src/services/live2d/`（facade + 加载器）；在那之前禁止建目录骨架。
++- **安全边界**：看板娘的对话能力必须走 `src/services/agent/` 的 AgentGateway 接口（当前为 mock，将来换 fetch 实现），**前端永不持有任何 Key/Token**，禁止在看板娘层直接调用 LLM SDK。
++
++## 9. 相关文档
+ 
+ - [CONTENT.md](./CONTENT.md)：内容写作规范与 frontmatter 字段字典
+ - [DESIGN.md](./DESIGN.md)：设计令牌与主题使用法
+diff --git a/docs/DESIGN.md b/docs/DESIGN.md
+index d36ab22..9cf1bfa 100644
+--- a/docs/DESIGN.md
++++ b/docs/DESIGN.md
+@@ -15,6 +15,10 @@
+ | 文本 | `--text-primary` / `--text-secondary` / `--text-tertiary` / `--text-inverse` |
+ | 边框 | `--border-default` / `--border-strong` |
+ | 强调色 | `--accent` / `--accent-hover` |
++| 辅助强调色（视觉改版） | `--accent-secondary`（紫）/ `--accent-tertiary`（青）/ `--accent-warm`（橙）/ `--accent-pink` |
++| 装饰背景（视觉改版） | `--bg-hero`（极淡蓝紫线性渐变）/ `--bg-grid-line`（网格线色）/ `--bg-glow`（径向光晕） |
++| 毛玻璃（视觉改版） | `--glass-bg` / `--glass-border` / `--glass-blur`（10px） |
++| 发光与渐变边框（视觉改版） | `--shadow-glow`（强调色发光阴影）/ `--gradient-border`（conic 蓝→紫→青→蓝） |
+ | 功能色 | `--success` / `--warning` / `--danger` / `--info` |
+ | 形状 | `--radius-card` / `--radius-control` |
+ | 阴影 | `--shadow-card` / `--shadow-overlay` |
+@@ -59,14 +63,17 @@ CSS-first，无 `tailwind.config.js`。`src/styles/globals.css`：
+ | `text-primary` / `text-secondary` / `text-tertiary` / `text-inverse` | 文本 |
+ | `border-default` / `border-strong` | 边框 |
+ | `text-accent` / `bg-accent` / `hover:bg-accent-hover` | 强调色 |
++| `text-accent-secondary` / `text-accent-tertiary` / `text-accent-warm` / `text-accent-pink`（及同名 `bg-*` / `border-*`） | 辅助强调色（视觉改版） |
++| `bg-hero` / `bg-glow` | 装饰渐变背景（`@utility` 注册，非 `--color-*` 命名空间） |
+ | `text-success` / `text-warning` / `text-danger` / `text-info` | 功能色 |
+ | `rounded-card` / `rounded-control` | 形状 |
+-| `shadow-card` / `shadow-overlay` | 阴影 |
++| `shadow-card` / `shadow-overlay` / `shadow-glow` | 阴影（glow 为视觉改版强调发光） |
+ | `bg-scrim` | 覆盖层遮罩 |
+ | `py-section` / `gap-block` | 节奏 |
+ | `max-w-prose-container` / `max-w-page` | 容器 |
+ | `font-sans` / `font-mono` | 字体 |
+ | `animate-overlay-in/out`、`animate-pop-in/out`、`animate-dialog-in/out`、`animate-breathe` | 覆盖层/呼吸点动画（时长/缓动来自动效令牌） |
++| `animate-float`（只动 transform，±8px 浮动）/ `animate-pulse-glow`（只动 opacity，呼吸发光） | 装饰动效（视觉改版，配 `motion-reduce:animate-none`） |
+ 
+ dark 变体由 `data-theme` 驱动（而非 `prefers-color-scheme`），写法照常：`dark:...`（大多数场景因令牌自动切换而无需 dark: 前缀）。
+ 
+@@ -95,3 +102,40 @@ dark 变体由 `data-theme` 驱动（而非 `prefers-color-scheme`），写法
+ - 类名合并统一用 `cn()`（`src/shared/utils/cn.ts`，clsx + tailwind-merge）。
+ - 超过 ~6 个工具类的重复组合应提炼为组件而非复制粘贴；props >8 或出现 `type/mode` 开关分叉渲染时必须拆分组件。
+ - Props 类型命名 `XxxProps` 并导出；每层目录 `index.ts` 定义公开边界（`shared/ui/index.ts`、`shared/components/index.ts`）。
++
++## 8. 装饰层规范（视觉改版，`src/styles/decorations.css`）
++
++装饰样式集中在 `decorations.css`（由 `globals.css` `@import`），全部纯 CSS gradient，**禁止图片 / JS / Canvas**。
++
++### 硬性约束
++
++- 装饰元素必须 `aria-hidden="true"`，不承载任何内容、不进入关键渲染路径（不得成为 LCP 元素）。
++- `data-decor` 取值白名单：`grid` | `stars`，新增取值必须同步本表与 `.qoder/rules/design-tokens.md`。
++- 装饰动效只动 `transform/opacity`，时长/缓动只用动效令牌，必须配 `motion-reduce:animate-none`。
++
++### 装饰类清单与用法
++
++| 类/属性 | 用途 | 降级策略 |
++|---|---|---|
++| `[data-decor="grid"]` | 纯 CSS repeating-linear-gradient 网格底纹（用 `--bg-grid-line`，格距 `--space-12`） | 无需降级（纯装饰） |
++| `[data-decor="stars"]` | 多层 radial-gradient 星点点缀 | 无需降级（纯装饰） |
++| `.glass` | 毛玻璃：`backdrop-filter: blur(var(--glass-blur))` + `--glass-bg`/`--glass-border` | `@supports not (backdrop-filter)` 时退回高不透明 `--bg-surface` 纯色背景 |
++| `.gradient-border-card` | hover/focus-within 渐变描边：伪元素铺 `--gradient-border` + 双层 mask 只露 1px 边框，只动 opacity | `prefers-reduced-motion` 下无过渡（状态切换仍生效） |
++
++用法示例：
++
++```tsx
++{/* 装饰背景层：必须 aria-hidden，绝对定位于内容之后 */}
++<div aria-hidden="true" data-decor="grid" className="absolute inset-0" />
++
++{/* 毛玻璃导航胶囊 */}
++<nav className="glass rounded-control">…</nav>
++
++{/* 渐变边框卡片：宿主需有 border-radius（伪元素 inherit） */}
++<article className="gradient-border-card rounded-card bg-surface">…</article>
++```
++
++### 对比度基线（视觉改版后，全部 ≥4.5:1 WCAG AA）
++
++- light：`--text-secondary` 上调为 `--gray-700`（on `--bg-base` ≈ 10.0:1）；辅助强调色 600 档均 ≥4.5:1（详见 `themes/light.css` 注释）。
++- dark：基底调为深蓝紫（`#12121e` / `#1a1a2b` / `#242438`）；`--text-secondary` 上调为 `--gray-300`（on `--bg-base` ≈ 12.6:1）；辅助强调色 400 档均 ≥6.5:1（详见 `themes/dark.css` 注释）。
+diff --git a/src/domains/agents/components/AgentCard.tsx b/src/domains/agents/components/AgentCard.tsx
+index 1b2533e..88d84c1 100644
+--- a/src/domains/agents/components/AgentCard.tsx
++++ b/src/domains/agents/components/AgentCard.tsx
+@@ -1,26 +1,86 @@
+ import { Link } from "react-router";
+ 
+-import { Badge, Card, Check } from "@/shared/ui";
++import {
++  ArrowRight,
++  Badge,
++  Bot,
++  Brain,
++  Card,
++  GitPullRequest,
++  Tag,
++  Wrench,
++} from "@/shared/ui";
++import { cn } from "@/shared/utils";
+ 
+ import { AgentStatusBadge } from "./AgentStatusBadge";
+ 
+-import type { Agent } from "../types";
++import type { Agent, AgentAccentTag } from "../types";
++import type { LucideIcon } from "@/shared/ui";
++
++/** accentTag → 色标背景（语义令牌）；缺省回退主 accent */
++const ACCENT_TAG_DOT: Record<AgentAccentTag, string> = {
++  purple: "bg-accent-secondary",
++  cyan: "bg-accent-tertiary",
++  warm: "bg-accent-warm",
++  pink: "bg-accent-pink",
++};
++
++/** accentTag → 图标文本色（语义令牌）；缺省回退主 accent */
++const ACCENT_TAG_TEXT: Record<AgentAccentTag, string> = {
++  purple: "text-accent-secondary",
++  cyan: "text-accent-tertiary",
++  warm: "text-accent-warm",
++  pink: "text-accent-pink",
++};
++
++/**
++ * icon 字符串 → lucide 组件白名单（防任意注入，视觉改版 §二）：
++ * 仅收录种子数据会用到的图标；未命中一律兜底 Bot。
++ */
++const AGENT_ICON: Record<string, LucideIcon> = {
++  bot: Bot,
++  "git-pull-request": GitPullRequest,
++  brain: Brain,
++  wrench: Wrench,
++};
+ 
+ export interface AgentCardProps {
+   agent: Agent;
+ }
+ 
+-/** Agent 列表卡：name/role/agentStatus 徽章/capabilities 前 3（基线 §7 列表页用） */
++/**
++ * Agent 列表卡（视觉改版重做）：顶部 accentTag 色标 + 白名单 icon（hover
++ * 发光为 opacity 叠层，只动 opacity）+ 状态胶囊；中部 title/role；底部
++ * stack 前 3 标签 + 右下箭头（hover 右移，只动 transform）。
++ * 整卡 glowBorder 渐变描边 + interactive 微抬升；stretched-link 整卡可点。
++ */
+ export function AgentCard({ agent }: AgentCardProps) {
++  const Icon = (agent.icon ? AGENT_ICON[agent.icon] : undefined) ?? Bot;
++  const dotColor = agent.accentTag ? ACCENT_TAG_DOT[agent.accentTag] : "bg-accent";
++  const iconColor = agent.accentTag
++    ? ACCENT_TAG_TEXT[agent.accentTag]
++    : "text-accent";
++
+   return (
+-    <Card interactive className="relative h-full">
++    <Card interactive glowBorder className="group relative h-full">
+       <article className="flex h-full flex-col gap-3">
+         <div className="flex flex-wrap items-center gap-2">
++          {/* accentTag 色标：小圆点，色随映射（缺省回退主 accent） */}
++          <span aria-hidden="true" className={cn("size-2 rounded-full", dotColor)} />
++          {/* 白名单 icon：hover 发光 = bg-glow 叠层只动 opacity（红线合规） */}
++          <span className="relative inline-flex">
++            <span
++              aria-hidden="true"
++              className="absolute -inset-1 rounded-full bg-glow opacity-0 transition-opacity duration-(--motion-base) group-hover:opacity-100 motion-reduce:transition-none"
++            />
++            <Icon aria-hidden="true" className={cn("relative size-5", iconColor)} />
++          </span>
+           <AgentStatusBadge status={agent.agentStatus} />
+           {agent.status === "draft" ? <Badge variant="warning">DRAFT</Badge> : null}
+         </div>
+         <div>
+           <h3 className="text-lg font-semibold text-primary">
++            {/* stretched-link：整卡可点，链接文本仍是标题（键盘/读屏可达） */}
+             <Link
+               to={`/agents/${agent.slug}`}
+               className="transition-colors duration-(--motion-fast) after:absolute after:inset-0 hover:text-accent"
+@@ -30,20 +90,18 @@ export function AgentCard({ agent }: AgentCardProps) {
+           </h3>
+           <p className="mt-1 text-sm text-tertiary">{agent.role}</p>
+         </div>
+-        <ul className="mt-auto flex flex-col gap-1.5">
+-          {agent.capabilities.slice(0, 3).map((capability) => (
+-            <li
+-              key={capability}
+-              className="flex items-start gap-2 text-sm text-secondary"
+-            >
+-              <Check
+-                aria-hidden="true"
+-                className="mt-0.5 size-4 shrink-0 text-accent"
+-              />
+-              {capability}
+-            </li>
+-          ))}
+-        </ul>
++        <div className="mt-auto flex items-end justify-between gap-3 pt-1">
++          <div className="flex flex-wrap gap-1.5">
++            {agent.stack.slice(0, 3).map((tech) => (
++              <Tag key={tech}>{tech}</Tag>
++            ))}
++          </div>
++          {/* 右下箭头：hover 右移只动 transform，reduced-motion 无过渡 */}
++          <ArrowRight
++            aria-hidden="true"
++            className="size-4 shrink-0 text-tertiary transition-transform duration-(--motion-fast) group-hover:translate-x-0.5 motion-reduce:transition-none"
++          />
++        </div>
+       </article>
+     </Card>
+   );
+diff --git a/src/domains/agents/components/AgentStatusBadge.tsx b/src/domains/agents/components/AgentStatusBadge.tsx
+index fa796ba..0414317 100644
+--- a/src/domains/agents/components/AgentStatusBadge.tsx
++++ b/src/domains/agents/components/AgentStatusBadge.tsx
+@@ -1,27 +1,27 @@
+-import { cn } from "@/shared/utils";
++import { StatusCapsule, type StatusCapsuleProps } from "@/shared/ui";
+ 
+ import type { AgentStatus } from "../types";
+ 
+-/** Agent 状态展示标签与语义色（agentStatus 驱动徽章，基线 §7） */
++/**
++ * Agent 状态展示文案（视觉改版：游戏化大写等宽标签；领域词汇归领域，基线 §10）。
++ * agents/detail.tsx 的正文引用同步呈现该文案。
++ */
+ export const AGENT_STATUS_LABEL: Record<AgentStatus, string> = {
+-  concept: "构想中",
+-  building: "构建中",
+-  usable: "可用",
+-  retired: "已退役",
+-};
+-
+-const DOT_COLOR: Record<AgentStatus, string> = {
+-  concept: "bg-info",
+-  building: "bg-warning",
+-  usable: "bg-success",
+-  retired: "bg-strong",
++  concept: "CONCEPT",
++  building: "BUILDING",
++  usable: "ONLINE",
++  retired: "ARCHIVED",
+ };
+ 
+-const TEXT_COLOR: Record<AgentStatus, string> = {
+-  concept: "text-info",
+-  building: "text-warning",
+-  usable: "text-success",
+-  retired: "text-tertiary",
++/** 状态 → StatusCapsule tone（语义令牌色一律经共享层胶囊消费） */
++const STATUS_TONE: Record<
++  AgentStatus,
++  NonNullable<StatusCapsuleProps["tone"]>
++> = {
++  concept: "neutral",
++  building: "warning",
++  usable: "success",
++  retired: "neutral",
+ };
+ 
+ /** 呼吸点只给“活着”的状态（构建中/可用）；退役与构想为静态点 */
+@@ -38,28 +38,18 @@ export interface AgentStatusBadgeProps {
+ }
+ 
+ /**
+- * Agent 状态徽章（基线 §11 领域专属动效）：呼吸点消费动效令牌
+- * （animate-breathe，时长派生自 --motion-narrative），
+- * reduced-motion 时经 motion-reduce:animate-none 静止呈现。
++ * Agent 状态徽章（视觉改版）：内部委托 shared/ui StatusCapsule 渲染，
++ * 本组件只保留 agents 领域的状态→文案/tone/呼吸映射。
++ * reduced-motion 时呼吸点经 motion-reduce:animate-none 静止呈现。
+  */
+ export function AgentStatusBadge({ status, className }: AgentStatusBadgeProps) {
+   return (
+-    <span
+-      className={cn(
+-        "inline-flex items-center gap-1.5 rounded-full border border-default bg-surface px-2.5 py-0.5 text-xs font-medium",
+-        TEXT_COLOR[status],
+-        className,
+-      )}
++    <StatusCapsule
++      tone={STATUS_TONE[status]}
++      animated={BREATHING[status]}
++      className={className}
+     >
+-      <span
+-        aria-hidden="true"
+-        className={cn(
+-          "size-1.5 rounded-full",
+-          DOT_COLOR[status],
+-          BREATHING[status] ? "animate-breathe motion-reduce:animate-none" : "",
+-        )}
+-      />
+       {AGENT_STATUS_LABEL[status]}
+-    </span>
++    </StatusCapsule>
+   );
+ }
+diff --git a/src/domains/agents/index.ts b/src/domains/agents/index.ts
+index 8551d65..8890c48 100644
+--- a/src/domains/agents/index.ts
++++ b/src/domains/agents/index.ts
+@@ -1,6 +1,11 @@
+ /** Agents 领域唯一公开出口（基线 §6）。 */
+-export type { Agent, AgentStatus } from "./types";
+-export { agentSchema, agentStatusSchema, agentDemoSchema } from "./schema";
++export type { Agent, AgentAccentTag, AgentStatus } from "./types";
++export {
++  agentSchema,
++  agentStatusSchema,
++  agentDemoSchema,
++  agentAccentTagSchema,
++} from "./schema";
+ export {
+   getAgents,
+   getAgentBySlug,
+diff --git a/src/domains/agents/repository.ts b/src/domains/agents/repository.ts
+index 4e8f456..4c25f95 100644
+--- a/src/domains/agents/repository.ts
++++ b/src/domains/agents/repository.ts
+@@ -50,6 +50,7 @@ export function getAgentReferenceRecords(): Promise<ReferenceRecord[]> {
+     slug: agent.slug,
+     title: agent.title,
+     href: refHref("agent", agent.slug),
++    status: agent.status,
+     related: agent.related,
+   }));
+   return Promise.resolve(records);
+diff --git a/src/domains/agents/schema.ts b/src/domains/agents/schema.ts
+index a0731e9..18c82a5 100644
+--- a/src/domains/agents/schema.ts
++++ b/src/domains/agents/schema.ts
+@@ -17,11 +17,21 @@ export const agentDemoSchema = z.object({
+   src: z.string().min(1),
+ });
+ 
++/**
++ * Agent 色彩标记（视觉改版）：映射到语义令牌 --accent-secondary/tertiary/warm/pink。
++ * 注意：optional 且无 default——未指定时渲染侧回退主 accent 蓝，避免污染存量数据。
++ */
++export const agentAccentTagSchema = z.enum(["purple", "cyan", "warm", "pink"]);
++
+ export const agentSchema = baseContentSchema.extend({
+   role: z.string().min(1, { message: "role 必填" }),
+   capabilities: z.array(z.string()).default([]),
+   stack: z.array(z.string()).default([]),
+   agentStatus: agentStatusSchema,
+   demo: agentDemoSchema.optional(),
++  /** 色彩标记：无 default，缺省时渲染侧回退主 accent */
++  accentTag: agentAccentTagSchema.optional(),
++  /** lucide 图标名字符串（如 "bot"）；渲染侧白名单映射，防任意注入 */
++  icon: z.string().optional(),
+   related: contentRefSchema.array().default([]),
+ });
+diff --git a/src/domains/agents/types.ts b/src/domains/agents/types.ts
+index 59dfef1..35f5464 100644
+--- a/src/domains/agents/types.ts
++++ b/src/domains/agents/types.ts
+@@ -1,7 +1,14 @@
+-import type { agentSchema, agentStatusSchema } from "./schema";
++import type {
++  agentAccentTagSchema,
++  agentSchema,
++  agentStatusSchema,
++} from "./schema";
+ import type { z } from "zod";
+ 
+ export type AgentStatus = z.infer<typeof agentStatusSchema>;
+ 
++/** Agent 色彩标记（视觉改版）：缺省时渲染侧回退主 accent */
++export type AgentAccentTag = z.infer<typeof agentAccentTagSchema>;
++
+ /** Agent 领域对象 */
+ export type Agent = z.infer<typeof agentSchema>;
+diff --git a/src/domains/articles/components/ArticleCard.tsx b/src/domains/articles/components/ArticleCard.tsx
+index 085f7b2..66ad285 100644
+--- a/src/domains/articles/components/ArticleCard.tsx
++++ b/src/domains/articles/components/ArticleCard.tsx
+@@ -1,7 +1,7 @@
+ import { Link } from "react-router";
+ 
+ import { Badge, Card, Clock, Tag } from "@/shared/ui";
+-import { formatDate } from "@/shared/utils";
++import { cn, formatDate } from "@/shared/utils";
+ 
+ import type { Article, ArticleCategory } from "../types";
+ 
+@@ -15,20 +15,49 @@ export const ARTICLE_CATEGORY_LABEL: Record<ArticleCategory, string> = {
+ 
+ export interface ArticleCardProps {
+   article: Article;
++  /** featured：首页大卡——更大标题/显示 cover/摘要行数放宽/meta 完整（默认 default 零破坏） */
++  size?: "default" | "featured";
+ }
+ 
++/** size → 标题字号（变体映射集中管理，不在 JSX 手拼分叉） */
++const TITLE_SIZE: Record<NonNullable<ArticleCardProps["size"]>, string> = {
++  default: "text-lg",
++  featured: "text-xl sm:text-2xl",
++};
++
++/** size → 摘要行数（featured 放宽） */
++const SUMMARY_CLAMP: Record<NonNullable<ArticleCardProps["size"]>, string> = {
++  default: "line-clamp-3",
++  featured: "line-clamp-4",
++};
++
++/** size → 标签 meta 展示：default 移动端隐藏（基线 §12）；featured 完整展示 */
++const META_TAGS: Record<NonNullable<ArticleCardProps["size"]>, string> = {
++  default: "hidden flex-wrap gap-1.5 sm:flex",
++  featured: "flex flex-wrap gap-1.5",
++};
++
+ /** 文章列表卡：title/summary/date/tags/readingTime/category（基线 §7 列表页用） */
+-export function ArticleCard({ article }: ArticleCardProps) {
++export function ArticleCard({ article, size = "default" }: ArticleCardProps) {
+   return (
+     <Card interactive className="relative h-full">
+       <article className="flex h-full flex-col gap-3">
++        {/* featured 大卡：有 cover 则展示（固定宽高比防 CLS），无则不留空 */}
++        {size === "featured" && article.cover ? (
++          <img
++            src={article.cover.src}
++            alt={article.cover.alt}
++            loading="lazy"
++            className="aspect-video w-full rounded-card object-cover"
++          />
++        ) : null}
+         <div className="flex flex-wrap items-center gap-2">
+           <Badge variant="outline">{ARTICLE_CATEGORY_LABEL[article.category]}</Badge>
+           {article.status === "draft" ? (
+             <Badge variant="warning">DRAFT</Badge>
+           ) : null}
+         </div>
+-        <h3 className="text-lg font-semibold text-primary">
++        <h3 className={cn("font-semibold text-primary", TITLE_SIZE[size])}>
+           {/* stretched-link：整卡可点，链接文本仍是标题（键盘/读屏可达） */}
+           <Link
+             to={`/writing/${article.slug}`}
+@@ -37,15 +66,17 @@ export function ArticleCard({ article }: ArticleCardProps) {
+             {article.title}
+           </Link>
+         </h3>
+-        <p className="line-clamp-3 text-sm text-secondary">{article.summary}</p>
++        <p className={cn("text-sm text-secondary", SUMMARY_CLAMP[size])}>
++          {article.summary}
++        </p>
+         <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-2 pt-1 text-xs text-tertiary">
+           <time dateTime={article.createdAt}>{formatDate(article.createdAt)}</time>
+           <span className="inline-flex items-center gap-1">
+             <Clock aria-hidden="true" className="size-3.5" />
+             {article.readingTime} 分钟
+           </span>
+-          {/* 次要 meta：移动端隐藏（基线 §12 信息密度） */}
+-          <span className="hidden flex-wrap gap-1.5 sm:flex">
++          {/* 次要 meta：default 移动端隐藏（基线 §12 信息密度）；featured 完整展示 */}
++          <span className={META_TAGS[size]}>
+             {article.tags.slice(0, 3).map((tag) => (
+               <Tag key={tag}>#{tag}</Tag>
+             ))}
+diff --git a/src/domains/articles/repository.ts b/src/domains/articles/repository.ts
+index e5775ed..7aa4a13 100644
+--- a/src/domains/articles/repository.ts
++++ b/src/domains/articles/repository.ts
+@@ -76,13 +76,14 @@ export function getArticleBySlug(
+   return Promise.resolve(detail);
+ }
+ 
+-/** 反向关联索引单元（构建期扫描全量 related，不过滤 draft） */
++/** 反向关联索引单元（构建期扫描全量 related，携带 status 供聚合器按可见性过滤） */
+ export function getArticleReferenceRecords(): Promise<ReferenceRecord[]> {
+   const records = buildAll().map(({ article }) => ({
+     kind: "article" as const,
+     slug: article.slug,
+     title: article.title,
+     href: refHref("article", article.slug),
++    status: article.status,
+     related: article.related,
+   }));
+   return Promise.resolve(records);
+diff --git a/src/domains/lab/repository.ts b/src/domains/lab/repository.ts
+index d067037..2ceadd3 100644
+--- a/src/domains/lab/repository.ts
++++ b/src/domains/lab/repository.ts
+@@ -63,6 +63,7 @@ export function getLabReferenceRecords(): Promise<ReferenceRecord[]> {
+     slug: experiment.slug,
+     title: experiment.title,
+     href: refHref("lab", experiment.slug),
++    status: experiment.status,
+     related: experiment.related,
+   }));
+   return Promise.resolve(records);
+diff --git a/src/domains/now/schema.ts b/src/domains/now/schema.ts
+index 34c2ae8..8935bfa 100644
+--- a/src/domains/now/schema.ts
++++ b/src/domains/now/schema.ts
+@@ -22,5 +22,9 @@ export const nowEntrySchema = z.object({
+ export const nowUpdateSchema = baseContentSchema.extend({
+   date: z.string().min(1),
+   focus: z.array(z.string()).default([]),
++  /** 正在学习（视觉改版：首页 NowStrip 的 CURRENTLY LEARNING 行） */
++  currentlyLearning: z.array(z.string()).default([]),
++  /** 开放合作方向（视觉改版：首页 NowStrip 的 OPEN TO 行） */
++  openTo: z.array(z.string()).default([]),
+   entries: z.array(nowEntrySchema).default([]),
+ });
+diff --git a/src/domains/projects/components/ProjectCard.tsx b/src/domains/projects/components/ProjectCard.tsx
+index dff5283..238d35d 100644
+--- a/src/domains/projects/components/ProjectCard.tsx
++++ b/src/domains/projects/components/ProjectCard.tsx
+@@ -32,10 +32,11 @@ export interface ProjectCardProps {
+   project: Project;
+ }
+ 
+-/** 项目列表卡：techStack/projectStatus/period（基线 §7 列表页用） */
++/** 项目列表卡：techStack/projectStatus/period（基线 §7 列表页用）；
++ * glowBorder 渐变描边（视觉改版 §六：列表卡启用，hover 只动 opacity） */
+ export function ProjectCard({ project }: ProjectCardProps) {
+   return (
+-    <Card interactive className="relative h-full">
++    <Card interactive glowBorder className="relative h-full">
+       <article className="flex h-full flex-col gap-3">
+         <div className="flex flex-wrap items-center gap-2">
+           <Badge variant={PROJECT_STATUS_VARIANT[project.projectStatus]}>
+diff --git a/src/domains/projects/index.ts b/src/domains/projects/index.ts
+index a37a1e0..5279ad5 100644
+--- a/src/domains/projects/index.ts
++++ b/src/domains/projects/index.ts
+@@ -12,3 +12,7 @@ export {
+   PROJECT_STATUS_VARIANT,
+   formatPeriod,
+ } from "./components/ProjectCard";
++export {
++  FeaturedProjectCard,
++  type FeaturedProjectCardProps,
++} from "./components/FeaturedProjectCard";
+diff --git a/src/domains/projects/repository.ts b/src/domains/projects/repository.ts
+index b882867..3ce02a5 100644
+--- a/src/domains/projects/repository.ts
++++ b/src/domains/projects/repository.ts
+@@ -51,6 +51,7 @@ export function getProjectReferenceRecords(): Promise<ReferenceRecord[]> {
+     slug: project.slug,
+     title: project.title,
+     href: refHref("project", project.slug),
++    status: project.status,
+     related: project.related,
+   }));
+   return Promise.resolve(records);
+diff --git a/src/domains/site/index.ts b/src/domains/site/index.ts
+index 54a396f..0bad8cd 100644
+--- a/src/domains/site/index.ts
++++ b/src/domains/site/index.ts
+@@ -15,4 +15,9 @@ export {
+   getSpotlightRef,
+   getSpotlight,
+ } from "./repository";
+-export { resolveRef, resolveRefs, getReferencesTo } from "./references";
++export {
++  resolveRef,
++  resolveRefs,
++  getReferencesTo,
++  sanitizeRelated,
++} from "./references";
+diff --git a/src/domains/site/references.ts b/src/domains/site/references.ts
+index 3a85548..41ac0d4 100644
+--- a/src/domains/site/references.ts
++++ b/src/domains/site/references.ts
+@@ -4,21 +4,25 @@ import { getLabReferenceRecords } from "@/domains/lab";
+ import { getProjectReferenceRecords } from "@/domains/projects";
+ import { getToolReferenceRecords } from "@/domains/toolbox";
+ import { refKey } from "@/shared/types/reference";
++import { draftsVisibleByDefault, isVisible } from "@/shared/utils/content";
+ 
+ import type { ContentRef } from "@/shared/types/base";
+ import type { ReferenceRecord, ResolvedRef } from "@/shared/types/reference";
++import type { DraftOptions } from "@/shared/utils/content";
+ 
+ /**
+  * 跨领域反向关联聚合器（基线 §7 关联与聚合）。
+- * 构建期从五个可引用领域（article/project/agent/lab/tool）拉取全量
+- * ReferenceRecord（含正向 related），据此提供：
++ * 构建期从五个可引用领域（article/project/agent/lab/tool）拉取
++ * ReferenceRecord（含正向 related 与 status），据此提供：
+  *  - resolveRef / resolveRefs：ContentRef → ResolvedRef（title/href），渲染链接用；
+  *  - getReferencesTo：谁引用了我（反查）。
+  * 跨领域一律经对方 index.ts（基线 §6：禁 import 对方内部）。
++ * 可见性与各领域列表语义一致（shared/utils/content）：draft 缺省仅 dev
++ * 可见、生产过滤；archived 不可见，避免生产链接/序列化数据泄露 draft slug。
+  */
+ 
+-/** 拉取并合并全部领域的引用记录（不过滤 draft，反向图需覆盖全量） */
+-async function loadRecords(): Promise<ReferenceRecord[]> {
++/** 拉取并合并全部领域的引用记录，按可见性过滤（与列表页 draft 语义一致） */
++async function loadRecords(options?: DraftOptions): Promise<ReferenceRecord[]> {
+   const groups = await Promise.all([
+     getArticleReferenceRecords(),
+     getProjectReferenceRecords(),
+@@ -26,32 +30,35 @@ async function loadRecords(): Promise<ReferenceRecord[]> {
+     getLabReferenceRecords(),
+     getToolReferenceRecords(),
+   ]);
+-  return groups.flat();
++  const includeDrafts = options?.includeDrafts ?? draftsVisibleByDefault();
++  return groups.flat().filter((r) => isVisible(r.status, includeDrafts));
+ }
+ 
+-/** 去掉 related，只留展示级字段 */
++/** 去掉 status/related，只留展示级字段 */
+ function toResolved(record: ReferenceRecord): ResolvedRef {
+-  const { related: _related, ...resolved } = record;
++  const { related: _related, status: _status, ...resolved } = record;
+   return resolved;
+ }
+ 
+-/** 解析单个引用为展示级结果；目标不存在时返回 undefined */
++/** 解析单个引用为展示级结果；目标不存在或不可见时返回 undefined */
+ export async function resolveRef(
+   ref: ContentRef,
++  options?: DraftOptions,
+ ): Promise<ResolvedRef | undefined> {
+   const index = new Map(
+-    (await loadRecords()).map((r) => [refKey(r.kind, r.slug), r]),
++    (await loadRecords(options)).map((r) => [refKey(r.kind, r.slug), r]),
+   );
+   const match = index.get(refKey(ref.kind, ref.slug));
+   return match ? toResolved(match) : undefined;
+ }
+ 
+-/** 批量解析引用；自动跳过无法解析（悬空）的引用 */
++/** 批量解析引用；自动跳过无法解析（悬空或不可见）的引用 */
+ export async function resolveRefs(
+   refs: readonly ContentRef[],
++  options?: DraftOptions,
+ ): Promise<ResolvedRef[]> {
+   const index = new Map(
+-    (await loadRecords()).map((r) => [refKey(r.kind, r.slug), r]),
++    (await loadRecords(options)).map((r) => [refKey(r.kind, r.slug), r]),
+   );
+   return refs
+     .map((ref) => index.get(refKey(ref.kind, ref.slug)))
+@@ -59,11 +66,12 @@ export async function resolveRefs(
+     .map(toResolved);
+ }
+ 
+-/** 反查：返回所有 related 中包含 target 的内容（谁引用了我） */
++/** 反查：返回所有 related 中包含 target 的可见内容（谁引用了我） */
+ export async function getReferencesTo(
+   target: ContentRef,
++  options?: DraftOptions,
+ ): Promise<ResolvedRef[]> {
+-  const records = await loadRecords();
++  const records = await loadRecords(options);
+   return records
+     .filter((record) =>
+       record.related.some(
+@@ -72,3 +80,20 @@ export async function getReferencesTo(
+     )
+     .map(toResolved);
+ }
++
++/**
++ * 净化实体的原始 related 引用列表：仅保留指向可见目标的引用。
++ * loader 序列化实体前调用，避免生产产物（HTML/.data）泄露 draft slug。
++ */
++export async function sanitizeRelated<T extends { related: ContentRef[] }>(
++  items: readonly T[],
++  options?: DraftOptions,
++): Promise<T[]> {
++  const visible = new Set(
++    (await loadRecords(options)).map((r) => refKey(r.kind, r.slug)),
++  );
++  return items.map((item) => ({
++    ...item,
++    related: item.related.filter((ref) => visible.has(refKey(ref.kind, ref.slug))),
++  }));
++}
+diff --git a/src/domains/toolbox/repository.ts b/src/domains/toolbox/repository.ts
+index ffb3192..4dcb5c4 100644
+--- a/src/domains/toolbox/repository.ts
++++ b/src/domains/toolbox/repository.ts
+@@ -46,6 +46,7 @@ export function getToolReferenceRecords(): Promise<ReferenceRecord[]> {
+     slug: tool.slug,
+     title: tool.title,
+     href: refHref("tool", tool.slug),
++    status: tool.status,
+     related: [],
+   }));
+   return Promise.resolve(records);
+diff --git a/src/pages/agents/detail.tsx b/src/pages/agents/detail.tsx
+index 42ffd4f..c156ab5 100644
+--- a/src/pages/agents/detail.tsx
++++ b/src/pages/agents/detail.tsx
+@@ -6,30 +6,40 @@ import {
+   AgentStatusBadge,
+   getAgentBySlug,
+ } from "@/domains/agents";
+-import { getReferencesTo, getSiteSettings, resolveRefs } from "@/domains/site";
++import {
++  getReferencesTo,
++  getSiteSettings,
++  resolveRefs,
++  sanitizeRelated,
++} from "@/domains/site";
+ import { RelatedRefs } from "@/shared/components";
+ import { FadeIn, SlideUp } from "@/shared/motion";
+ import { buildMeta } from "@/shared/seo";
+ import {
+   ArrowLeft,
+-  Badge,
+   buttonVariants,
+   Check,
+   ExternalLink,
++  StatusCapsule,
+   Tag,
+ } from "@/shared/ui";
++import { cn } from "@/shared/utils";
++
++import type { AgentAccentTag } from "@/domains/agents";
+ 
+ export async function loader({ params }: Route.LoaderArgs) {
+   const agent = await getAgentBySlug(params.slug);
+   if (!agent) {
+     throw new Response("Not Found", { status: 404 });
+   }
+-  const [site, related, referencedBy] = await Promise.all([
++  const [site, related, referencedBy, [safeAgent]] = await Promise.all([
+     getSiteSettings(),
+     resolveRefs(agent.related),
+     getReferencesTo({ kind: "agent", slug: agent.slug }),
++    // 序列化前净化 related，避免生产产物泄露 draft slug
++    sanitizeRelated([agent]),
+   ]);
+-  return { site, agent, related, referencedBy };
++  return { site, agent: safeAgent ?? agent, related, referencedBy };
+ }
+ 
+ export function meta({ loaderData: data }: Route.MetaArgs) {
+@@ -47,7 +57,15 @@ export function meta({ loaderData: data }: Route.MetaArgs) {
+   });
+ }
+ 
+-/** Agent 详情：role/状态徽章/能力/stack + demo 外链 + related/被引用反查 */
++/** accentTag → 标题旁色标背景（语义令牌）；缺省回退主 accent */
++const ACCENT_TAG_DOT: Record<AgentAccentTag, string> = {
++  purple: "bg-accent-secondary",
++  cyan: "bg-accent-tertiary",
++  warm: "bg-accent-warm",
++  pink: "bg-accent-pink",
++};
++
++/** Agent 详情：role/状态胶囊/能力/stack + demo 外链 + related/被引用反查 */
+ export default function AgentDetail({ loaderData }: Route.ComponentProps) {
+   const { agent, related, referencedBy } = loaderData;
+ 
+@@ -63,13 +81,23 @@ export default function AgentDetail({ loaderData }: Route.ComponentProps) {
+             返回 Agents
+           </Link>
+           <div className="mt-4 flex flex-wrap items-center gap-2">
+-            {/* 呼吸点徽章：动效消费令牌且尊重 reduced-motion */}
++            {/* 状态胶囊（视觉改版 §六）：呼吸点动效尊重 reduced-motion */}
+             <AgentStatusBadge status={agent.agentStatus} />
+             {agent.status === "draft" ? (
+-              <Badge variant="warning">DRAFT</Badge>
++              <StatusCapsule tone="warning" animated={false}>
++                DRAFT
++              </StatusCapsule>
+             ) : null}
+           </div>
+-          <h1 className="mt-3 max-w-prose-container text-3xl font-bold tracking-tight text-primary sm:text-4xl">
++          {/* accentTag 色标（视觉改版 §六）：纯装饰，缺省回退主 accent */}
++          <h1 className="mt-3 flex max-w-prose-container items-center gap-3 text-3xl font-bold tracking-tight text-primary sm:text-4xl">
++            <span
++              aria-hidden="true"
++              className={cn(
++                "size-3 shrink-0 rounded-full",
++                agent.accentTag ? ACCENT_TAG_DOT[agent.accentTag] : "bg-accent",
++              )}
++            />
+             {agent.title}
+           </h1>
+           <p className="mt-2 font-mono text-sm text-tertiary">{agent.role}</p>
+diff --git a/src/pages/agents/index.tsx b/src/pages/agents/index.tsx
+index 18a1e47..a3ad3cf 100644
+--- a/src/pages/agents/index.tsx
++++ b/src/pages/agents/index.tsx
+@@ -1,13 +1,15 @@
+ import type { Route } from "./+types/index";
+ import { AgentCard, getAgents } from "@/domains/agents";
+-import { getSiteSettings } from "@/domains/site";
++import { getSiteSettings, sanitizeRelated } from "@/domains/site";
+ import { PageHero } from "@/shared/components";
+ import { Stagger } from "@/shared/motion";
+ import { buildMeta } from "@/shared/seo";
+ import { Bot, EmptyState } from "@/shared/ui";
+ 
+ export async function loader() {
+-  const [site, agents] = await Promise.all([getSiteSettings(), getAgents()]);
++  const [site, rawAgents] = await Promise.all([getSiteSettings(), getAgents()]);
++  // 序列化前净化 related，避免生产产物泄露 draft slug
++  const agents = await sanitizeRelated(rawAgents);
+   return { site, agents };
+ }
+ 
+@@ -30,11 +32,25 @@ export default function Agents({ loaderData }: Route.ComponentProps) {
+   const { agents } = loaderData;
+   return (
+     <div className="mx-auto max-w-page px-4 py-section sm:px-6">
+-      <PageHero
+-        eyebrow="agents"
+-        title="Agents"
+-        description="构建中的 AI Agent 作品集——角色、能力边界与当前状态。"
+-      />
++      {/* PageHero 装饰背景（视觉改版 §六）：网格 + 光晕，纯装饰不影响文本可读 */}
++      <div className="relative">
++        <div
++          aria-hidden="true"
++          data-decor="grid"
++          className="absolute -inset-x-4 -inset-y-6 sm:-inset-x-6"
++        />
++        <div
++          aria-hidden="true"
++          className="absolute -inset-x-4 -inset-y-6 bg-glow sm:-inset-x-6"
++        />
++        <div className="relative">
++          <PageHero
++            eyebrow="agents"
++            title="Agents"
++            description="构建中的 AI Agent 作品集——角色、能力边界与当前状态。"
++          />
++        </div>
++      </div>
+       {agents.length > 0 ? (
+         <Stagger className="mt-block grid gap-4 sm:grid-cols-2">
+           {agents.map((agent) => (
+diff --git a/src/pages/dev-ui/index.tsx b/src/pages/dev-ui/index.tsx
+index 22cccaf..9142b18 100644
+--- a/src/pages/dev-ui/index.tsx
++++ b/src/pages/dev-ui/index.tsx
+@@ -22,6 +22,7 @@ import {
+   Search,
+   Separator,
+   Skeleton,
++  StatusCapsule,
+   Tabs,
+   TabsContent,
+   TabsList,
+@@ -128,6 +129,37 @@ export default function DevUi() {
+               interactive：hover 微抬升（纯 CSS，reduced-motion 取消）
+             </p>
+           </Card>
++          <Card glass>
++            <p className="text-sm text-secondary">
++              glass：毛玻璃（backdrop-filter，旧设备 @supports 降级纯色）
++            </p>
++          </Card>
++          <Card glowBorder>
++            <p className="text-sm text-secondary">
++              glowBorder：hover/focus-within 渐变流光描边（只动 opacity）
++            </p>
++          </Card>
++          <Card glass glowBorder interactive>
++            <p className="text-sm text-secondary">
++              glass + glowBorder + interactive 叠加
++            </p>
++          </Card>
++        </div>
++      </Section>
++
++      <Section title="StatusCapsule（游戏化状态胶囊）">
++        <div className="flex flex-wrap items-center gap-2">
++          <StatusCapsule>accent</StatusCapsule>
++          <StatusCapsule tone="secondary">secondary</StatusCapsule>
++          <StatusCapsule tone="tertiary">tertiary</StatusCapsule>
++          <StatusCapsule tone="warm">warm</StatusCapsule>
++          <StatusCapsule tone="pink">pink</StatusCapsule>
++          <StatusCapsule tone="success">online</StatusCapsule>
++          <StatusCapsule tone="warning">building</StatusCapsule>
++          <StatusCapsule tone="neutral">archived</StatusCapsule>
++          <StatusCapsule tone="success" animated={false}>
++            静态点 animated=false
++          </StatusCapsule>
+         </div>
+       </Section>
+ 
+diff --git a/src/pages/home/index.tsx b/src/pages/home/index.tsx
+index 6ccabb7..be95d68 100644
+--- a/src/pages/home/index.tsx
++++ b/src/pages/home/index.tsx
+@@ -1,24 +1,35 @@
+ import { Link } from "react-router";
+ 
+ import type { Route } from "./+types/index";
++import { AboutContact } from "./about-contact";
++import { HeroSection } from "./hero-section";
++import { NowStrip } from "./now-strip";
+ import { AgentCard, getAgents } from "@/domains/agents";
+ import { ArticleCard, getArticles } from "@/domains/articles";
++import { getLatestNowUpdate } from "@/domains/now";
+ import { getProfile } from "@/domains/profile";
+-import { getProjects, ProjectCard } from "@/domains/projects";
+-import { getSiteSettings, getSpotlight } from "@/domains/site";
+-import { FadeIn, SlideUp, Stagger } from "@/shared/motion";
++import { FeaturedProjectCard, getProjects } from "@/domains/projects";
++import { getSiteSettings, getSpotlight, sanitizeRelated } from "@/domains/site";
++import { FadeIn, Stagger } from "@/shared/motion";
+ import { buildMeta, websiteJsonLd } from "@/shared/seo";
+-import {
+-  ArrowRight,
+-  ArrowUpRight,
+-  buttonVariants,
+-  Card,
+-  ChevronDown,
+-} from "@/shared/ui";
++import { ArrowRight } from "@/shared/ui";
++
++import type { Project } from "@/domains/projects";
++
++/** featuredOrder 升序（未设排最后） */
++function byFeaturedOrder(
++  a: { featuredOrder?: number },
++  b: { featuredOrder?: number },
++): number {
++  return (
++    (a.featuredOrder ?? Number.MAX_SAFE_INTEGER) -
++    (b.featuredOrder ?? Number.MAX_SAFE_INTEGER)
++  );
++}
+ 
+ /** 构建期取数（ssr:false + prerender：loader 在构建时运行并固化进产物） */
+ export async function loader() {
+-  const [site, profile, spotlight, articles, agents, projects] =
++  const [site, profile, spotlight, rawArticles, rawAgents, rawProjects, latestNow] =
+     await Promise.all([
+       getSiteSettings(),
+       getProfile(),
+@@ -26,14 +37,38 @@ export async function loader() {
+       getArticles(),
+       getAgents(),
+       getProjects(),
++      getLatestNowUpdate(),
+     ]);
++  // 序列化前净化 related，避免生产产物泄露 draft slug
++  const [articles, agents, projects] = await Promise.all([
++    sanitizeRelated(rawArticles),
++    sanitizeRelated(rawAgents),
++    sanitizeRelated(rawProjects),
++  ]);
++
++  // Featured Project：spotlight 解析为 project 时优先，否则 featured 按 featuredOrder 第一个
++  const spotlightProject: Project | undefined =
++    spotlight?.kind === "project"
++      ? projects.find((project) => project.slug === spotlight.slug)
++      : undefined;
++  const featuredProject =
++    spotlightProject ??
++    projects.filter((project) => project.featured).sort(byFeaturedOrder)[0];
++
++  // Selected Agents：featured 优先（按 featuredOrder），不足补最新，共 3 张
++  const featuredAgents = agents
++    .filter((agent) => agent.featured)
++    .sort(byFeaturedOrder);
++  const restAgents = agents.filter((agent) => !agent.featured);
++  const selectedAgents = [...featuredAgents, ...restAgents].slice(0, 3);
++
+   return {
+     site,
+     profile,
+-    spotlight,
++    featuredProject,
++    selectedAgents,
+     latestArticles: articles.slice(0, 3),
+-    featuredAgents: agents.filter((agent) => agent.featured),
+-    featuredProjects: projects.filter((project) => project.featured),
++    latestNow,
+   };
+ }
+ 
+@@ -87,109 +122,78 @@ function SectionHeader({
+   );
+ }
+ 
+-/** 首页：身份陈述 Hero + spotlight 精选 + 最新文章 + 精选 Agents/Projects */
++/**
++ * 首页（视觉改版 §五）：全宽 Hero（工作台场景装饰）→ Featured Project →
++ * Selected Agents → Latest Writing → NowStrip → About/Contact。
++ */
+ export default function Home({ loaderData }: Route.ComponentProps) {
+-  const { profile, spotlight, latestArticles, featuredAgents, featuredProjects } =
++  const { profile, featuredProject, selectedAgents, latestArticles, latestNow } =
+     loaderData;
++  const [firstArticle, ...restArticles] = latestArticles;
+ 
+   return (
+-    <div className="mx-auto max-w-page px-4 py-section sm:px-6">
+-      {/* 移动首屏克制（基线 §12）：身份陈述 + spotlight 入口 + 滚动暗示 */}
+-      <SlideUp>
+-        <p className="font-mono text-sm text-tertiary">
+-          {profile.name} · cogniflux
+-        </p>
+-        <h1 className="mt-2 max-w-prose-container text-4xl font-bold tracking-tight text-primary sm:text-5xl">
+-          {profile.title}
+-        </h1>
+-        <p className="mt-4 max-w-prose-container text-lg text-secondary">
+-          {profile.bio}
+-        </p>
+-        <div className="mt-8 flex flex-wrap items-center gap-3">
+-          <Link to="/agents" className={buttonVariants({ variant: "primary" })}>
+-            看看 Agents
+-            <ArrowRight aria-hidden="true" />
+-          </Link>
+-          <Link to="/writing" className={buttonVariants({ variant: "secondary" })}>
+-            读些文章
+-          </Link>
+-        </div>
+-      </SlideUp>
+-
+-      {spotlight ? (
+-        <FadeIn delay={0.12} className="mt-block">
+-          <Card elevated interactive className="relative">
+-            <p className="font-mono text-xs text-tertiary">spotlight</p>
+-            <h2 className="mt-2 text-xl font-semibold text-primary">
+-              <Link
+-                to={spotlight.href}
+-                className="inline-flex items-center gap-1.5 transition-colors duration-(--motion-fast) after:absolute after:inset-0 hover:text-accent"
+-              >
+-                {spotlight.title}
+-                <ArrowUpRight aria-hidden="true" className="size-5 text-tertiary" />
+-              </Link>
+-            </h2>
+-            <p className="mt-2 text-sm text-secondary">
+-              当前最值得关注的方向——从这里进入正在构建的核心项目。
+-            </p>
+-          </Card>
+-        </FadeIn>
+-      ) : null}
+-
+-      {/* 滚动暗示：纯装饰，读屏隐藏 */}
+-      <FadeIn delay={0.2} className="mt-block flex justify-center">
+-        <span aria-hidden="true">
+-          <ChevronDown className="size-5 animate-breathe text-tertiary motion-reduce:animate-none" />
+-        </span>
+-      </FadeIn>
+-
+-      {latestArticles.length > 0 ? (
+-        <section className="mt-section" aria-labelledby="home-articles">
+-          <SectionHeader
+-            id="home-articles"
+-            title="最新文章"
+-            to="/writing"
+-            linkLabel="全部文章"
+-          />
+-          <Stagger className="mt-block grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+-            {latestArticles.map((article) => (
+-              <ArticleCard key={article.slug} article={article} />
+-            ))}
+-          </Stagger>
+-        </section>
+-      ) : null}
+-
+-      {featuredAgents.length > 0 ? (
+-        <section className="mt-section" aria-labelledby="home-agents">
+-          <SectionHeader
+-            id="home-agents"
+-            title="精选 Agents"
+-            to="/agents"
+-            linkLabel="全部 Agents"
+-          />
+-          <Stagger className="mt-block grid gap-4 sm:grid-cols-2">
+-            {featuredAgents.map((agent) => (
+-              <AgentCard key={agent.slug} agent={agent} />
+-            ))}
+-          </Stagger>
+-        </section>
+-      ) : null}
+-
+-      {featuredProjects.length > 0 ? (
+-        <section className="mt-section" aria-labelledby="home-projects">
+-          <SectionHeader
+-            id="home-projects"
+-            title="精选项目"
+-            to="/projects"
+-            linkLabel="全部项目"
+-          />
+-          <Stagger className="mt-block grid gap-4 sm:grid-cols-2">
+-            {featuredProjects.map((project) => (
+-              <ProjectCard key={project.slug} project={project} />
+-            ))}
+-          </Stagger>
+-        </section>
+-      ) : null}
+-    </div>
++    <>
++      <HeroSection profile={profile} />
++
++      <div className="mx-auto max-w-page px-4 py-section sm:px-6">
++        {featuredProject ? (
++          <section aria-labelledby="home-featured-project">
++            <SectionHeader
++              id="home-featured-project"
++              title="精选项目"
++              to="/projects"
++              linkLabel="全部项目"
++            />
++            <FadeIn delay={0.08} className="mt-block">
++              <FeaturedProjectCard project={featuredProject} />
++            </FadeIn>
++          </section>
++        ) : null}
++
++        {selectedAgents.length > 0 ? (
++          <section className="mt-section" aria-labelledby="home-agents">
++            <SectionHeader
++              id="home-agents"
++              title="精选 Agents"
++              to="/agents"
++              linkLabel="全部 Agents"
++            />
++            <Stagger className="mt-block grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
++              {selectedAgents.map((agent) => (
++                <AgentCard key={agent.slug} agent={agent} />
++              ))}
++            </Stagger>
++          </section>
++        ) : null}
++
++        {latestArticles.length > 0 ? (
++          <section className="mt-section" aria-labelledby="home-articles">
++            <SectionHeader
++              id="home-articles"
++              title="最新文章"
++              to="/writing"
++              linkLabel="全部文章"
++            />
++            {/* 首篇 featured 大卡占满整行，其余 2 篇默认卡 */}
++            {firstArticle ? (
++              <FadeIn delay={0.08} className="mt-block">
++                <ArticleCard article={firstArticle} size="featured" />
++              </FadeIn>
++            ) : null}
++            {restArticles.length > 0 ? (
++              <Stagger className="mt-4 grid gap-4 sm:grid-cols-2">
++                {restArticles.map((article) => (
++                  <ArticleCard key={article.slug} article={article} />
++                ))}
++              </Stagger>
++            ) : null}
++          </section>
++        ) : null}
++
++        {latestNow ? <NowStrip now={latestNow} /> : null}
++
++        <AboutContact profile={profile} />
++      </div>
++    </>
+   );
+ }
+diff --git a/src/pages/lab/detail.tsx b/src/pages/lab/detail.tsx
+index 17f0e6b..feec0e1 100644
+--- a/src/pages/lab/detail.tsx
++++ b/src/pages/lab/detail.tsx
+@@ -7,7 +7,12 @@ import {
+   LAB_OUTCOME_LABEL,
+   LAB_OUTCOME_VARIANT,
+ } from "@/domains/lab";
+-import { getReferencesTo, getSiteSettings, resolveRefs } from "@/domains/site";
++import {
++  getReferencesTo,
++  getSiteSettings,
++  resolveRefs,
++  sanitizeRelated,
++} from "@/domains/site";
+ import { Prose, RelatedRefs } from "@/shared/components";
+ import { FadeIn, SlideUp } from "@/shared/motion";
+ import { buildMeta } from "@/shared/seo";
+@@ -30,12 +35,14 @@ export async function loader({ params }: Route.LoaderArgs) {
+     throw new Response("Not Found", { status: 404 });
+   }
+   const { experiment } = detail;
+-  const [site, related, referencedBy] = await Promise.all([
++  const [site, related, referencedBy, [safeExperiment]] = await Promise.all([
+     getSiteSettings(),
+     resolveRefs(experiment.related),
+     getReferencesTo({ kind: "lab", slug: experiment.slug }),
++    // 序列化前净化 related，避免生产产物泄露 draft slug
++    sanitizeRelated([experiment]),
+   ]);
+-  return { site, experiment, related, referencedBy };
++  return { site, experiment: safeExperiment ?? experiment, related, referencedBy };
+ }
+ 
+ export function meta({ loaderData: data }: Route.MetaArgs) {
+diff --git a/src/pages/lab/index.tsx b/src/pages/lab/index.tsx
+index 5971ccd..32244bc 100644
+--- a/src/pages/lab/index.tsx
++++ b/src/pages/lab/index.tsx
+@@ -1,16 +1,18 @@
+ import type { Route } from "./+types/index";
+ import { getLabExperiments, LabExperimentCard } from "@/domains/lab";
+-import { getSiteSettings } from "@/domains/site";
++import { getSiteSettings, sanitizeRelated } from "@/domains/site";
+ import { PageHero } from "@/shared/components";
+ import { Stagger } from "@/shared/motion";
+ import { buildMeta } from "@/shared/seo";
+ import { EmptyState, FlaskConical } from "@/shared/ui";
+ 
+ export async function loader() {
+-  const [site, experiments] = await Promise.all([
++  const [site, rawExperiments] = await Promise.all([
+     getSiteSettings(),
+     getLabExperiments(),
+   ]);
++  // 序列化前净化 related，避免生产产物泄露 draft slug
++  const experiments = await sanitizeRelated(rawExperiments);
+   return { site, experiments };
+ }
+ 
+diff --git a/src/pages/projects/detail.tsx b/src/pages/projects/detail.tsx
+index dd10dae..66ad8ad 100644
+--- a/src/pages/projects/detail.tsx
++++ b/src/pages/projects/detail.tsx
+@@ -7,7 +7,12 @@ import {
+   PROJECT_STATUS_LABEL,
+   PROJECT_STATUS_VARIANT,
+ } from "@/domains/projects";
+-import { getReferencesTo, getSiteSettings, resolveRefs } from "@/domains/site";
++import {
++  getReferencesTo,
++  getSiteSettings,
++  resolveRefs,
++  sanitizeRelated,
++} from "@/domains/site";
+ import { RelatedRefs, Timeline, TimelineItem } from "@/shared/components";
+ import { FadeIn, SlideUp } from "@/shared/motion";
+ import { buildMeta } from "@/shared/seo";
+@@ -17,6 +22,7 @@ import {
+   buttonVariants,
+   Check,
+   ExternalLink,
++  GitBranch,
+   Tag,
+ } from "@/shared/ui";
+ 
+@@ -25,12 +31,14 @@ export async function loader({ params }: Route.LoaderArgs) {
+   if (!project) {
+     throw new Response("Not Found", { status: 404 });
+   }
+-  const [site, related, referencedBy] = await Promise.all([
++  const [site, related, referencedBy, [safeProject]] = await Promise.all([
+     getSiteSettings(),
+     resolveRefs(project.related),
+     getReferencesTo({ kind: "project", slug: project.slug }),
++    // 序列化前净化 related，避免生产产物泄露 draft slug
++    sanitizeRelated([project]),
+   ]);
+-  return { site, project, related, referencedBy };
++  return { site, project: safeProject ?? project, related, referencedBy };
+ }
+ 
+ export function meta({ loaderData: data }: Route.MetaArgs) {
+@@ -48,19 +56,9 @@ export function meta({ loaderData: data }: Route.MetaArgs) {
+   });
+ }
+ 
+-/** 外链标签（links 字段 → 展示文案） */
+-const LINK_LABEL: Record<string, string> = {
+-  repo: "代码仓库",
+-  demo: "在线演示",
+-  docs: "项目文档",
+-};
+-
+-/** 项目详情：highlights/时间线/links + related/被引用反查 */
++/** 项目详情：封面/highlights/时间线/links + related/被引用反查 */
+ export default function ProjectDetail({ loaderData }: Route.ComponentProps) {
+   const { project, related, referencedBy } = loaderData;
+-  const links = Object.entries(project.links).filter(
+-    (entry): entry is [string, string] => Boolean(entry[1]),
+-  );
+ 
+   return (
+     <div className="mx-auto max-w-page px-4 py-section sm:px-6">
+@@ -73,6 +71,14 @@ export default function ProjectDetail({ loaderData }: Route.ComponentProps) {
+             <ArrowLeft aria-hidden="true" className="size-4" />
+             返回 Projects
+           </Link>
++          {/* 封面图（视觉改版 §六）：aspect-video 固定宽高比防 CLS */}
++          {project.cover ? (
++            <img
++              src={project.cover.src}
++              alt={project.cover.alt}
++              className="mt-6 aspect-video w-full rounded-card border border-default object-cover"
++            />
++          ) : null}
+           <div className="mt-4 flex flex-wrap items-center gap-2">
+             <Badge variant={PROJECT_STATUS_VARIANT[project.projectStatus]}>
+               {PROJECT_STATUS_LABEL[project.projectStatus]}
+@@ -95,23 +101,45 @@ export default function ProjectDetail({ loaderData }: Route.ComponentProps) {
+               <Tag key={tech}>{tech}</Tag>
+             ))}
+           </div>
+-          {links.length > 0 ? (
++          {/* 入口按钮组（视觉改版 §六）：主次层级——在线演示主按钮，仓库/文档次按钮 */}
++          {project.links.demo || project.links.repo || project.links.docs ? (
+             <div className="mt-6 flex flex-wrap items-center gap-3">
+-              {links.map(([key, url]) => (
++              {project.links.demo ? (
+                 <a
+-                  key={key}
+-                  href={url}
++                  href={project.links.demo}
+                   target="_blank"
+                   rel="noopener noreferrer"
+-                  className={buttonVariants({
+-                    variant: key === "repo" ? "primary" : "secondary",
+-                  })}
++                  className={buttonVariants({ variant: "primary" })}
+                 >
+-                  {LINK_LABEL[key] ?? key}
++                  在线演示
+                   <ExternalLink aria-hidden="true" />
+                   <span className="sr-only">（新窗口打开）</span>
+                 </a>
+-              ))}
++              ) : null}
++              {project.links.repo ? (
++                <a
++                  href={project.links.repo}
++                  target="_blank"
++                  rel="noopener noreferrer"
++                  className={buttonVariants({ variant: "secondary" })}
++                >
++                  <GitBranch aria-hidden="true" />
++                  代码仓库
++                  <span className="sr-only">（新窗口打开）</span>
++                </a>
++              ) : null}
++              {project.links.docs ? (
++                <a
++                  href={project.links.docs}
++                  target="_blank"
++                  rel="noopener noreferrer"
++                  className={buttonVariants({ variant: "secondary" })}
++                >
++                  项目文档
++                  <ExternalLink aria-hidden="true" />
++                  <span className="sr-only">（新窗口打开）</span>
++                </a>
++              ) : null}
+             </div>
+           ) : null}
+         </header>
+diff --git a/src/pages/projects/index.tsx b/src/pages/projects/index.tsx
+index 3ca8e36..c4ebeba 100644
+--- a/src/pages/projects/index.tsx
++++ b/src/pages/projects/index.tsx
+@@ -1,13 +1,15 @@
+ import type { Route } from "./+types/index";
+ import { getProjects, ProjectCard } from "@/domains/projects";
+-import { getSiteSettings } from "@/domains/site";
++import { getSiteSettings, sanitizeRelated } from "@/domains/site";
+ import { PageHero } from "@/shared/components";
+ import { Stagger } from "@/shared/motion";
+ import { buildMeta } from "@/shared/seo";
+ import { EmptyState, Hammer } from "@/shared/ui";
+ 
+ export async function loader() {
+-  const [site, projects] = await Promise.all([getSiteSettings(), getProjects()]);
++  const [site, rawProjects] = await Promise.all([getSiteSettings(), getProjects()]);
++  // 序列化前净化 related，避免生产产物泄露 draft slug
++  const projects = await sanitizeRelated(rawProjects);
+   return { site, projects };
+ }
+ 
+@@ -30,11 +32,25 @@ export default function Projects({ loaderData }: Route.ComponentProps) {
+   const { projects } = loaderData;
+   return (
+     <div className="mx-auto max-w-page px-4 py-section sm:px-6">
+-      <PageHero
+-        eyebrow="projects"
+-        title="Projects"
+-        description="正在构建与已经完成的项目——技术栈、状态与阶段性成果。"
+-      />
++      {/* PageHero 装饰背景（视觉改版 §六）：网格 + 光晕，纯装饰不影响文本可读 */}
++      <div className="relative">
++        <div
++          aria-hidden="true"
++          data-decor="grid"
++          className="absolute -inset-x-4 -inset-y-6 sm:-inset-x-6"
++        />
++        <div
++          aria-hidden="true"
++          className="absolute -inset-x-4 -inset-y-6 bg-glow sm:-inset-x-6"
++        />
++        <div className="relative">
++          <PageHero
++            eyebrow="projects"
++            title="Projects"
++            description="正在构建与已经完成的项目——技术栈、状态与阶段性成果。"
++          />
++        </div>
++      </div>
+       {projects.length > 0 ? (
+         <Stagger className="mt-block grid gap-4 sm:grid-cols-2">
+           {projects.map((project) => (
+diff --git a/src/pages/writing/detail.tsx b/src/pages/writing/detail.tsx
+index 6f02897..86ad1de 100644
+--- a/src/pages/writing/detail.tsx
++++ b/src/pages/writing/detail.tsx
+@@ -8,7 +8,12 @@ import {
+   getArticles,
+ } from "@/domains/articles";
+ import { getProfile } from "@/domains/profile";
+-import { getReferencesTo, getSiteSettings, resolveRefs } from "@/domains/site";
++import {
++  getReferencesTo,
++  getSiteSettings,
++  resolveRefs,
++  sanitizeRelated,
++} from "@/domains/site";
+ import { Prose, RelatedRefs } from "@/shared/components";
+ import { FadeIn, SlideUp } from "@/shared/motion";
+ import { blogPostingJsonLd, buildMeta } from "@/shared/seo";
+@@ -32,20 +37,23 @@ export async function loader({ params }: Route.LoaderArgs) {
+     throw new Response("Not Found", { status: 404 });
+   }
+   const { article, headings } = detail;
+-  const [site, related, referencedBy, articles, profile] = await Promise.all([
+-    getSiteSettings(),
+-    resolveRefs(article.related),
+-    getReferencesTo({ kind: "article", slug: article.slug }),
+-    getArticles(),
+-    getProfile(),
+-  ]);
++  const [site, related, referencedBy, articles, profile, [safeArticle]] =
++    await Promise.all([
++      getSiteSettings(),
++      resolveRefs(article.related),
++      getReferencesTo({ kind: "article", slug: article.slug }),
++      getArticles(),
++      getProfile(),
++      // 序列化前净化 related，避免生产产物泄露 draft slug
++      sanitizeRelated([article]),
++    ]);
+   const index = articles.findIndex((item) => item.slug === article.slug);
+   const newer = index > 0 ? articles[index - 1] : undefined;
+   const older =
+     index >= 0 && index < articles.length - 1 ? articles[index + 1] : undefined;
+   return {
+     site,
+-    article,
++    article: safeArticle ?? article,
+     headings,
+     related,
+     referencedBy,
+diff --git a/src/pages/writing/index.tsx b/src/pages/writing/index.tsx
+index 755099c..dc94410 100644
+--- a/src/pages/writing/index.tsx
++++ b/src/pages/writing/index.tsx
+@@ -1,13 +1,15 @@
+ import type { Route } from "./+types/index";
+ import { ArticleCard, getArticles } from "@/domains/articles";
+-import { getSiteSettings } from "@/domains/site";
++import { getSiteSettings, sanitizeRelated } from "@/domains/site";
+ import { PageHero } from "@/shared/components";
+ import { Stagger } from "@/shared/motion";
+ import { buildMeta } from "@/shared/seo";
+ import { EmptyState, PenLine } from "@/shared/ui";
+ 
+ export async function loader() {
+-  const [site, articles] = await Promise.all([getSiteSettings(), getArticles()]);
++  const [site, rawArticles] = await Promise.all([getSiteSettings(), getArticles()]);
++  // 序列化前净化 related，避免生产产物泄露 draft slug
++  const articles = await sanitizeRelated(rawArticles);
+   return { site, articles };
+ }
+ 
+diff --git a/src/shared/components/SiteHeader.tsx b/src/shared/components/SiteHeader.tsx
+index 0ab0cf4..54e1661 100644
+--- a/src/shared/components/SiteHeader.tsx
++++ b/src/shared/components/SiteHeader.tsx
+@@ -16,13 +16,16 @@ export interface SiteHeaderProps {
+ }
+ 
+ /**
+- * 站点顶栏：logo + 桌面横向导航（当前路由下划线过渡）+ 主题切换 +
++ * 站点顶栏（视觉改版：毛玻璃悬浮胶囊导航）：sticky 悬浮，内容容器为
++ * 圆角胶囊 + .glass（含 @supports 纯色降级）+ 轻阴影；
++ * logo + 桌面横向导航（当前路由下划线过渡）+ 主题切换 +
+  * 移动端菜单按钮（lg 以下显示，8 栏目桌面横排需要 lg 宽度）。
++ * header 本体 pointer-events-none，胶囊两侧空白不遮挡下方内容点击。
+  */
+ export function SiteHeader({ items }: SiteHeaderProps) {
+   return (
+-    <header className="sticky top-0 z-(--z-sticky) border-b border-default bg-base/90 backdrop-blur-sm">
+-      <div className="mx-auto flex h-16 max-w-page items-center justify-between gap-4 px-4 sm:px-6">
++    <header className="pointer-events-none sticky top-0 z-(--z-sticky) px-4 pt-3 sm:px-6">
++      <div className="glass pointer-events-auto mx-auto flex h-14 max-w-page items-center justify-between gap-4 rounded-full px-4 shadow-card sm:px-6">
+         <Link
+           to="/"
+           className="rounded-control font-mono text-lg font-semibold tracking-tight text-primary"
+diff --git a/src/shared/types/reference.ts b/src/shared/types/reference.ts
+index 954fe21..656a695 100644
+--- a/src/shared/types/reference.ts
++++ b/src/shared/types/reference.ts
+@@ -4,7 +4,7 @@
+  * （带 title/href），反向索引由构建期扫描 ReferenceRecord 生成。
+  * 放在 shared 层：所有领域共用，且不产生对 domains 的反向依赖。
+  */
+-import type { ContentRef } from "./base";
++import type { ContentRef, ContentStatus } from "./base";
+ 
+ export type ContentKind = ContentRef["kind"];
+ 
+@@ -16,8 +16,9 @@ export interface ResolvedRef {
+   href: string;
+ }
+ 
+-/** 构建期反向关联索引的单元：解析结果 + 其正向 related 列表 */
++/** 构建期反向关联索引的单元：解析结果 + 可见性状态 + 其正向 related 列表 */
+ export interface ReferenceRecord extends ResolvedRef {
++  status: ContentStatus;
+   related: ContentRef[];
+ }
+ 
+diff --git a/src/shared/ui/Button.tsx b/src/shared/ui/Button.tsx
+index efb6729..097ca33 100644
+--- a/src/shared/ui/Button.tsx
++++ b/src/shared/ui/Button.tsx
+@@ -9,7 +9,10 @@ export const buttonVariants = cva(
+   {
+     variants: {
+       variant: {
+-        primary: "bg-accent text-inverse hover:bg-accent-hover active:bg-accent-hover",
++        // primary 附带 svg 箭头 hover 右移（视觉改版）：只动 transform，
++        // 时长用动效令牌，reduced-motion 时无过渡；无 svg 子元素时零影响
++        primary:
++          "bg-accent text-inverse hover:bg-accent-hover active:bg-accent-hover [&_svg]:transition-transform [&_svg]:duration-(--motion-fast) hover:[&_svg]:translate-x-0.5 motion-reduce:[&_svg]:transition-none",
+         secondary:
+           "border border-default bg-surface text-primary hover:bg-raised active:bg-raised",
+         ghost: "text-secondary hover:bg-raised hover:text-primary active:bg-raised",
+diff --git a/src/shared/ui/Card.tsx b/src/shared/ui/Card.tsx
+index 1b74e4d..ffa25ae 100644
+--- a/src/shared/ui/Card.tsx
++++ b/src/shared/ui/Card.tsx
+@@ -19,11 +19,25 @@ export const cardVariants = cva("rounded-card border border-default bg-surface",
+       true: "transition-[transform,box-shadow] duration-(--motion-base) ease-out-token hover:-translate-y-0.5 hover:shadow-card motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+       false: "",
+     },
++    /** 毛玻璃卡片（视觉改版）：.glass 为非分层样式，覆盖基类 bg-surface/border-default；
++     * 含 @supports 降级（见 decorations.css） */
++    glass: {
++      true: "glass",
++      false: "",
++    },
++    /** 渐变流光描边（视觉改版）：hover/focus-within 时伪元素只动 opacity；
++     * 宿主已有 rounded-card（伪元素 border-radius: inherit 依赖它） */
++    glowBorder: {
++      true: "relative gradient-border-card",
++      false: "",
++    },
+   },
+   defaultVariants: {
+     padding: "md",
+     elevated: false,
+     interactive: false,
++    glass: false,
++    glowBorder: false,
+   },
+ });
+ 
+@@ -31,10 +45,21 @@ export interface CardProps
+   extends ComponentProps<"div">,
+     VariantProps<typeof cardVariants> {}
+ 
+-export function Card({ className, padding, elevated, interactive, ...props }: CardProps) {
++export function Card({
++  className,
++  padding,
++  elevated,
++  interactive,
++  glass,
++  glowBorder,
++  ...props
++}: CardProps) {
+   return (
+     <div
+-      className={cn(cardVariants({ padding, elevated, interactive }), className)}
++      className={cn(
++        cardVariants({ padding, elevated, interactive, glass, glowBorder }),
++        className,
++      )}
+       {...props}
+     />
+   );
+diff --git a/src/shared/ui/icon.ts b/src/shared/ui/icon.ts
+index 21fddea..0d4acbf 100644
+--- a/src/shared/ui/icon.ts
++++ b/src/shared/ui/icon.ts
+@@ -19,6 +19,7 @@ export {
+   ExternalLink,
+   FlaskConical,
+   GitBranch,
++  GitPullRequest,
+   Globe,
+   Hammer,
+   Inbox,
+diff --git a/src/shared/ui/index.ts b/src/shared/ui/index.ts
+index 9100f90..8cab093 100644
+--- a/src/shared/ui/index.ts
++++ b/src/shared/ui/index.ts
+@@ -24,6 +24,12 @@ export { EmptyState, type EmptyStateProps } from "./EmptyState";
+ export { Input, type InputProps } from "./Input";
+ export { Separator, type SeparatorProps } from "./Separator";
+ export { Skeleton, type SkeletonProps } from "./Skeleton";
++export {
++  StatusCapsule,
++  statusCapsuleVariants,
++  statusCapsuleDotVariants,
++  type StatusCapsuleProps,
++} from "./StatusCapsule";
+ export {
+   Tabs,
+   TabsContent,
+diff --git a/src/styles/globals.css b/src/styles/globals.css
+index 0a9fa94..4e9aa99 100644
+--- a/src/styles/globals.css
++++ b/src/styles/globals.css
+@@ -3,6 +3,7 @@
+ @import "./tokens.css";
+ @import "./themes/light.css";
+ @import "./themes/dark.css";
++@import "./decorations.css";
+ 
+ /* dark 变体由 data-theme 驱动（而非 prefers-color-scheme） */
+ @custom-variant dark ([data-theme="dark"] &);
+@@ -32,6 +33,12 @@
+   /* 强调与功能色：text-accent / bg-accent / hover:bg-accent-hover … */
+   --color-accent: var(--accent);
+   --color-accent-hover: var(--accent-hover);
++  /* 辅助强调色（视觉改版）：text-accent-secondary / text-accent-tertiary /
++   * text-accent-warm / text-accent-pink（及同名 bg-* / border-*） */
++  --color-accent-secondary: var(--accent-secondary);
++  --color-accent-tertiary: var(--accent-tertiary);
++  --color-accent-warm: var(--accent-warm);
++  --color-accent-pink: var(--accent-pink);
+   --color-success: var(--success);
+   --color-warning: var(--warning);
+   --color-danger: var(--danger);
+@@ -42,9 +49,10 @@
+   --radius-card: var(--radius-card);
+   --radius-control: var(--radius-control);
+ 
+-  /* 阴影：shadow-card / shadow-overlay */
++  /* 阴影：shadow-card / shadow-overlay / shadow-glow（视觉改版：强调发光） */
+   --shadow-card: var(--shadow-card);
+   --shadow-overlay: var(--shadow-overlay);
++  --shadow-glow: var(--shadow-glow);
+ 
+   /* 遮罩：bg-scrim（覆盖层背后的 scrim） */
+   --color-scrim: var(--overlay-scrim);
+@@ -79,6 +87,23 @@
+    * reduced-motion 时由 motion-reduce:animate-none 关闭 */
+   --animate-breathe: breathe calc(var(--motion-narrative) * 4) var(--ease-out)
+     infinite;
++
++  /* 装饰动效（视觉改版）：animate-float（只动 transform，浮动 ±8px）与
++   * animate-pulse-glow（只动 opacity，呼吸发光）；时长均由动效令牌派生，
++   * reduced-motion 时由 motion-reduce:animate-none 关闭 */
++  --animate-float: float calc(var(--motion-narrative) * 6) var(--ease-out)
++    infinite;
++  --animate-pulse-glow: pulse-glow calc(var(--motion-narrative) * 4)
++    var(--ease-out) infinite;
++}
++
++/* 装饰背景工具类（渐变为 background-image，不属于 --color-* 命名空间，
++ * 故用 @utility 注册）：bg-hero / bg-glow */
++@utility bg-hero {
++  background-image: var(--bg-hero);
++}
++@utility bg-glow {
++  background-image: var(--bg-glow);
+ }
+ 
+ @keyframes breathe {
+@@ -91,6 +116,28 @@
+   }
+ }
+ 
++/* 装饰浮动（只动 transform）：Hero 装饰卡片错峰漂浮 */
++@keyframes float {
++  0%,
++  100% {
++    transform: translateY(0);
++  }
++  50% {
++    transform: translateY(-8px);
++  }
++}
++
++/* 发光呼吸（只动 opacity）：Agent 节点 / 状态点的光晕呈现 */
++@keyframes pulse-glow {
++  0%,
++  100% {
++    opacity: 1;
++  }
++  50% {
++    opacity: 0.45;
++  }
++}
++
+ /* ------------------------------------------------------------
+  * .prose 令牌定制（基线 §9：长文排版用 typography 插件 + 令牌定制，
+  * 允许 @apply 于 .prose 这类设计系统底层）：
+diff --git a/src/styles/themes/dark.css b/src/styles/themes/dark.css
+index d849289..320e570 100644
+--- a/src/styles/themes/dark.css
++++ b/src/styles/themes/dark.css
+@@ -1,22 +1,66 @@
+-/* Dark 主题：深灰基底（非纯黑），同一冷静蓝提亮一档作强调。
+- * 对比度（WCAG AA）：--text-primary #f4f4f5 on #131316 ≈ 17:1；
+- * --text-secondary #a1a1aa on #131316 ≈ 7.6:1；--accent #60a5fa on #1c1c21 ≈ 6.6:1。 */
++/* Dark 主题：深蓝紫「夜间开发者工作台」基底（视觉改版：由纯灰黑调为带蓝紫倾向），
++ * 同一冷静蓝提亮一档作强调，辅助强调色取 400 档。
++ * 对比度（WCAG AA，全部 ≥4.5:1）：
++ * --text-primary   #f4f4f5 on #12121e ≈ 16.9:1 / on #1a1a2b ≈ 15.6:1 / on #242438 ≈ 13.8:1
++ * --text-secondary #d4d4d8 on #12121e ≈ 12.6:1 / on #1a1a2b ≈ 11.6:1 / on #242438 ≈ 10.3:1
++ * --accent           #60a5fa on #12121e ≈ 7.3:1 / on #1a1a2b ≈ 6.7:1
++ * --accent-secondary #c084fc on #12121e ≈ 7.0:1 / on #1a1a2b ≈ 6.5:1
++ * --accent-tertiary  #22d3ee on #12121e ≈ 10.3:1 / on #1a1a2b ≈ 9.5:1
++ * --accent-warm      #fb923c on #12121e ≈ 8.2:1 / on #1a1a2b ≈ 7.6:1
++ * --accent-pink      #f472b6 on #12121e ≈ 7.0:1 / on #1a1a2b ≈ 6.5:1 */
+ [data-theme="dark"] {
+-  --bg-base: #131316;
+-  --bg-surface: #1c1c21;
+-  --bg-raised: #26262c;
++  --bg-base: #12121e;
++  --bg-surface: #1a1a2b;
++  --bg-raised: #242438;
+ 
+   --text-primary: var(--gray-100);
+-  --text-secondary: var(--gray-400);
++  /* text-secondary 由 gray-400 上调为 gray-300（视觉改版对比度红线） */
++  --text-secondary: var(--gray-300);
+   --text-tertiary: var(--gray-500);
+   --text-inverse: var(--gray-900);
+ 
+-  --border-default: #303038;
+-  --border-strong: #43434d;
++  /* 边框随基底带蓝紫倾向 */
++  --border-default: #2e2e46;
++  --border-strong: #414163;
+ 
+   --accent: var(--brand-400);
+   --accent-hover: var(--brand-300);
+ 
++  /* 辅助强调色（视觉改版）：暗色侧统一取 400 档提亮 */
++  --accent-secondary: var(--purple-400);
++  --accent-tertiary: var(--cyan-400);
++  --accent-warm: var(--orange-400);
++  --accent-pink: var(--pink-400);
++
++  /* 装饰背景：暗色侧透明度略升，保持氛围可感知 */
++  --bg-hero: linear-gradient(
++    135deg,
++    rgb(96 165 250 / 0.1) 0%,
++    rgb(192 132 252 / 0.08) 45%,
++    rgb(34 211 238 / 0.06) 100%
++  );
++  --bg-grid-line: rgb(147 165 250 / 0.08);
++  --bg-glow: radial-gradient(
++    ellipse at center,
++    rgb(147 51 234 / 0.25) 0%,
++    transparent 70%
++  );
++
++  /* 毛玻璃：以 surface 色低透明度 + 微亮描边 */
++  --glass-bg: rgb(26 26 43 / 0.6);
++  --glass-border: rgb(255 255 255 / 0.08);
++  --glass-blur: 10px;
++
++  /* 发光阴影与渐变边框：改用 400 档，避免暗底上发灰 */
++  --shadow-glow: 0 0 24px rgb(96 165 250 / 0.28);
++  --gradient-border: conic-gradient(
++    from 180deg at 50% 50%,
++    var(--brand-400),
++    var(--purple-400),
++    var(--cyan-400),
++    var(--brand-400)
++  );
++
+   --success: var(--green-400);
+   --warning: var(--amber-400);
+   --danger: var(--red-400);
+diff --git a/src/styles/themes/light.css b/src/styles/themes/light.css
+index 0c080fe..9951e2b 100644
+--- a/src/styles/themes/light.css
++++ b/src/styles/themes/light.css
+@@ -1,13 +1,19 @@
+ /* Light 主题：与 :root 默认值一致，显式声明以保证 data-theme 切换语义完整。
+- * 对比度（WCAG AA）：--text-primary #18181b on #fafafa ≈ 16.6:1；
+- * --text-secondary #52525b on #fafafa ≈ 7.0:1；--accent #2563eb on #ffffff ≈ 5.2:1。 */
++ * 对比度（WCAG AA，全部 ≥4.5:1）：
++ * --text-primary   #18181b on #fafafa ≈ 16.6:1 / on #ffffff ≈ 17.4:1
++ * --text-secondary #3f3f46 on #fafafa ≈ 10.0:1 / on #ffffff ≈ 10.4:1 / on #f4f4f5 ≈ 9.5:1
++ * --accent         #2563eb on #ffffff ≈ 5.2:1
++ * --accent-secondary #9333ea on #fafafa ≈ 5.2:1 / on #f4f4f5 ≈ 4.9:1
++ * --accent-tertiary  #0e7490 on #fafafa ≈ 5.1:1 / on #f4f4f5 ≈ 4.9:1
++ * --accent-warm      #c2410c on #fafafa ≈ 5.0:1 / on #f4f4f5 ≈ 4.7:1
++ * --accent-pink      #be185d on #fafafa ≈ 5.8:1 / on #f4f4f5 ≈ 5.5:1 */
+ [data-theme="light"] {
+   --bg-base: var(--gray-50);
+   --bg-surface: #ffffff;
+   --bg-raised: var(--gray-100);
+ 
+   --text-primary: var(--gray-900);
+-  --text-secondary: var(--gray-600);
++  --text-secondary: var(--gray-700);
+   --text-tertiary: var(--gray-500);
+   --text-inverse: var(--gray-50);
+ 
+@@ -17,6 +23,41 @@
+   --accent: var(--brand-600);
+   --accent-hover: var(--brand-700);
+ 
++  /* 辅助强调色（视觉改版） */
++  --accent-secondary: var(--purple-600);
++  --accent-tertiary: var(--cyan-600);
++  --accent-warm: var(--orange-600);
++  --accent-pink: var(--pink-600);
++
++  /* 装饰背景（极淡蓝紫，浅色基底上低透明度叠加） */
++  --bg-hero: linear-gradient(
++    135deg,
++    rgb(59 130 246 / 0.08) 0%,
++    rgb(147 51 234 / 0.06) 45%,
++    rgb(34 211 238 / 0.05) 100%
++  );
++  --bg-grid-line: rgb(37 99 235 / 0.07);
++  --bg-glow: radial-gradient(
++    ellipse at center,
++    rgb(59 130 246 / 0.15) 0%,
++    transparent 70%
++  );
++
++  /* 毛玻璃 */
++  --glass-bg: rgb(255 255 255 / 0.65);
++  --glass-border: rgb(228 228 231 / 0.6);
++  --glass-blur: 10px;
++
++  /* 发光阴影与渐变边框 */
++  --shadow-glow: 0 0 24px rgb(37 99 235 / 0.18);
++  --gradient-border: conic-gradient(
++    from 180deg at 50% 50%,
++    var(--brand-600),
++    var(--purple-600),
++    var(--cyan-600),
++    var(--brand-600)
++  );
++
+   --success: var(--green-600);
+   --warning: var(--amber-600);
+   --danger: var(--red-600);
+diff --git a/src/styles/tokens.css b/src/styles/tokens.css
+index 5ed2287..67efb46 100644
+--- a/src/styles/tokens.css
++++ b/src/styles/tokens.css
+@@ -35,6 +35,19 @@
+   --brand-900: #1e3a8a;
+   --brand-950: #172554;
+ 
++  /* Primitive：视觉改版辅助色阶（与 --brand 蓝同族冷调和谐；
++   * 400 档取 Tailwind 官方同名值（dark 主题文本用）；
++   * 600 档为满足浅色文本 AA（≥4.5:1 on --gray-50）在官方 600 基础上加深：
++   * cyan/orange/pink 官方 600 对比度仅 3.6~4.4:1，故对齐官方 700 档取值 */
++  --purple-400: #c084fc;
++  --purple-600: #9333ea;
++  --cyan-400: #22d3ee;
++  --cyan-600: #0e7490;
++  --orange-400: #fb923c;
++  --orange-600: #c2410c;
++  --pink-400: #f472b6;
++  --pink-600: #be185d;
++
+   /* Primitive：功能色原始值 */
+   --green-600: #16a34a;
+   --green-400: #4ade80;
+@@ -99,9 +112,11 @@
+   --bg-surface: #ffffff;
+   --bg-raised: var(--gray-100);
+ 
+-  /* Semantic：文本 */
++  /* Semantic：文本
++   * text-secondary 由 gray-600 上调为 gray-700（视觉改版对比度红线）：
++   * #3f3f46 on #fafafa ≈ 10.0:1（≥4.5:1 WCAG AA） */
+   --text-primary: var(--gray-900);
+-  --text-secondary: var(--gray-600);
++  --text-secondary: var(--gray-700);
+   --text-tertiary: var(--gray-500);
+   --text-inverse: var(--gray-50);
+ 
+@@ -113,6 +128,48 @@
+   --accent: var(--brand-600);
+   --accent-hover: var(--brand-700);
+ 
++  /* Semantic：辅助强调色（视觉改版：Agent 色彩标记 / 装饰点缀）
++   * 对比度（on --gray-50 #fafafa）：secondary 5.2:1 / tertiary 5.1:1 /
++   * warm 5.0:1 / pink 5.8:1，全部 ≥4.5:1（WCAG AA） */
++  --accent-secondary: var(--purple-600);
++  --accent-tertiary: var(--cyan-600);
++  --accent-warm: var(--orange-600);
++  --accent-pink: var(--pink-600);
++
++  /* Semantic：装饰背景（纯 CSS gradient，仅装饰层消费，禁止承载内容） */
++  /* Hero 极淡蓝紫线性渐变 */
++  --bg-hero: linear-gradient(
++    135deg,
++    rgb(59 130 246 / 0.08) 0%,
++    rgb(147 51 234 / 0.06) 45%,
++    rgb(34 211 238 / 0.05) 100%
++  );
++  /* 网格线色（极淡，配 [data-decor="grid"]） */
++  --bg-grid-line: rgb(37 99 235 / 0.07);
++  /* 径向光晕（配 Hero / PageHero 氛围层） */
++  --bg-glow: radial-gradient(
++    ellipse at center,
++    rgb(59 130 246 / 0.15) 0%,
++    transparent 70%
++  );
++
++  /* Semantic：毛玻璃（配 .glass，见 decorations.css） */
++  --glass-bg: rgb(255 255 255 / 0.65);
++  --glass-border: rgb(228 228 231 / 0.6);
++  --glass-blur: 10px;
++
++  /* Semantic：发光阴影（强调色 glow，hover 强调场景） */
++  --shadow-glow: 0 0 24px rgb(37 99 235 / 0.18);
++
++  /* Semantic：渐变边框（conic 蓝→紫→青→蓝，配 .gradient-border-card） */
++  --gradient-border: conic-gradient(
++    from 180deg at 50% 50%,
++    var(--brand-600),
++    var(--purple-600),
++    var(--cyan-600),
++    var(--brand-600)
++  );
++
+   /* Semantic：功能色 */
+   --success: var(--green-600);
+   --warning: var(--amber-600);
+diff --git a/tests/domains/agents.test.ts b/tests/domains/agents.test.ts
+index fbd596e..69509e0 100644
+--- a/tests/domains/agents.test.ts
++++ b/tests/domains/agents.test.ts
+@@ -30,6 +30,51 @@ describe("agents repository", () => {
+     });
+   });
+ 
++  it("schema 接受合法 accentTag/icon（视觉改版新字段）", () => {
++    const parsed = agentSchema.parse({
++      slug: "ok",
++      title: "x",
++      summary: "y",
++      status: "published",
++      createdAt: "2026-07-26",
++      role: "r",
++      agentStatus: "usable",
++      accentTag: "purple",
++      icon: "bot",
++    });
++    expect(parsed.accentTag).toBe("purple");
++    expect(parsed.icon).toBe("bot");
++  });
++
++  it("schema 拒绝非法 accentTag 枚举值", () => {
++    expect(() =>
++      agentSchema.parse({
++        slug: "bad",
++        title: "x",
++        summary: "y",
++        status: "published",
++        createdAt: "2026-07-26",
++        role: "r",
++        agentStatus: "usable",
++        accentTag: "red",
++      }),
++    ).toThrow();
++  });
++
++  it("accentTag 缺省时 parse 结果为 undefined（无 default 污染）", () => {
++    const parsed = agentSchema.parse({
++      slug: "ok",
++      title: "x",
++      summary: "y",
++      status: "published",
++      createdAt: "2026-07-26",
++      role: "r",
++      agentStatus: "usable",
++    });
++    expect(parsed.accentTag).toBeUndefined();
++    expect(parsed.icon).toBeUndefined();
++  });
++
+   it("schema 拒绝坏数据（非法 agentStatus / 缺 role）", () => {
+     expect(() =>
+       agentSchema.parse({
+diff --git a/tests/domains/now.test.ts b/tests/domains/now.test.ts
+index 49df20d..5153733 100644
+--- a/tests/domains/now.test.ts
++++ b/tests/domains/now.test.ts
+@@ -24,6 +24,19 @@ describe("now repository", () => {
+     expect(await getNowUpdateBySlug("1999-01")).toBeUndefined();
+   });
+ 
++  it("currentlyLearning/openTo 缺省为 []（视觉改版新字段）", () => {
++    const parsed = nowUpdateSchema.parse({
++      slug: "2026-08",
++      title: "x",
++      summary: "y",
++      status: "published",
++      createdAt: "2026-08-01",
++      date: "2026-08",
++    });
++    expect(parsed.currentlyLearning).toEqual([]);
++    expect(parsed.openTo).toEqual([]);
++  });
++
+   it("schema 拒绝坏数据（非法 entry.category）", () => {
+     expect(() =>
+       nowUpdateSchema.parse({
+diff --git a/tests/domains/site.test.ts b/tests/domains/site.test.ts
+index edc6cb9..87d953d 100644
+--- a/tests/domains/site.test.ts
++++ b/tests/domains/site.test.ts
+@@ -7,6 +7,7 @@ import {
+   getSpotlight,
+   resolveRef,
+   resolveRefs,
++  sanitizeRelated,
+ } from "@/domains/site";
+ 
+ describe("site repository", () => {
+@@ -61,12 +62,71 @@ describe("references 聚合器（正向解析 + 反向查询）", () => {
+     expect(refs.map((r) => r.slug)).toContain("cogniflux-platform");
+   });
+ 
+-  it("getReferencesTo：反向图覆盖草稿（不受 draft 过滤影响）", async () => {
+-    // flux-agent-runtime 被 agent / lab / 草稿文章共同引用。
+-    const refs = await getReferencesTo({ kind: "project", slug: "flux-agent-runtime" });
++  it("getReferencesTo：dev 语义（includeDrafts）下反向图覆盖草稿来源", async () => {
++    // flux-agent-runtime 被 agent / lab / 草稿文章共同引用；写作预览需全部可见。
++    const refs = await getReferencesTo(
++      { kind: "project", slug: "flux-agent-runtime" },
++      { includeDrafts: true },
++    );
+     const slugs = refs.map((r) => r.slug);
+     expect(slugs).toContain("refactor-navigator");
+     expect(slugs).toContain("streaming-agent-latency");
+     expect(slugs).toContain("designing-agent-contracts");
+   });
++
++  it("生产语义：resolveRef/resolveRefs 跳过 draft 目标", async () => {
++    // draft 项目在生产不预渲染，解析为链接会 404，必须过滤。
++    expect(
++      await resolveRef(
++        { kind: "project", slug: "flux-agent-runtime" },
++        { includeDrafts: false },
++      ),
++    ).toBeUndefined();
++    const resolved = await resolveRefs(
++      [
++        { kind: "project", slug: "flux-agent-runtime" },
++        { kind: "project", slug: "cogniflux-platform" },
++      ],
++      { includeDrafts: false },
++    );
++    expect(resolved.map((r) => r.slug)).toEqual(["cogniflux-platform"]);
++  });
++
++  it("生产语义：getReferencesTo 不返回 draft 来源，保留 published 来源", async () => {
++    const refs = await getReferencesTo(
++      { kind: "project", slug: "flux-agent-runtime" },
++      { includeDrafts: false },
++    );
++    const slugs = refs.map((r) => r.slug);
++    expect(slugs).toContain("refactor-navigator");
++    expect(slugs).toContain("streaming-agent-latency");
++    expect(slugs).not.toContain("designing-agent-contracts");
++  });
++
++  it("dev 语义：resolveRefs 保留 draft 目标（写作预览）", async () => {
++    const resolved = await resolveRefs(
++      [{ kind: "project", slug: "flux-agent-runtime" }],
++      { includeDrafts: true },
++    );
++    expect(resolved.map((r) => r.slug)).toEqual(["flux-agent-runtime"]);
++  });
++
++  it("sanitizeRelated：生产语义剔除 draft 引用，dev 语义保留", async () => {
++    const items = [
++      {
++        slug: "refactor-navigator",
++        related: [
++          { kind: "project" as const, slug: "flux-agent-runtime" },
++          { kind: "article" as const, slug: "hello-cogniflux" },
++        ],
++      },
++    ];
++    const prod = await sanitizeRelated(items, { includeDrafts: false });
++    expect(prod[0]?.related.map((r) => r.slug)).toEqual(["hello-cogniflux"]);
++    const dev = await sanitizeRelated(items, { includeDrafts: true });
++    expect(dev[0]?.related.map((r) => r.slug)).toEqual([
++      "flux-agent-runtime",
++      "hello-cogniflux",
++    ]);
++  });
+ });

@@ -30,6 +30,51 @@ describe("agents repository", () => {
     });
   });
 
+  it("schema 接受合法 accentTag/icon（视觉改版新字段）", () => {
+    const parsed = agentSchema.parse({
+      slug: "ok",
+      title: "x",
+      summary: "y",
+      status: "published",
+      createdAt: "2026-07-26",
+      role: "r",
+      agentStatus: "usable",
+      accentTag: "purple",
+      icon: "bot",
+    });
+    expect(parsed.accentTag).toBe("purple");
+    expect(parsed.icon).toBe("bot");
+  });
+
+  it("schema 拒绝非法 accentTag 枚举值", () => {
+    expect(() =>
+      agentSchema.parse({
+        slug: "bad",
+        title: "x",
+        summary: "y",
+        status: "published",
+        createdAt: "2026-07-26",
+        role: "r",
+        agentStatus: "usable",
+        accentTag: "red",
+      }),
+    ).toThrow();
+  });
+
+  it("accentTag 缺省时 parse 结果为 undefined（无 default 污染）", () => {
+    const parsed = agentSchema.parse({
+      slug: "ok",
+      title: "x",
+      summary: "y",
+      status: "published",
+      createdAt: "2026-07-26",
+      role: "r",
+      agentStatus: "usable",
+    });
+    expect(parsed.accentTag).toBeUndefined();
+    expect(parsed.icon).toBeUndefined();
+  });
+
   it("schema 拒绝坏数据（非法 agentStatus / 缺 role）", () => {
     expect(() =>
       agentSchema.parse({

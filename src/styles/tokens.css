@@ -35,6 +35,19 @@
   --brand-900: #1e3a8a;
   --brand-950: #172554;
 
+  /* Primitive：视觉改版辅助色阶（与 --brand 蓝同族冷调和谐；
+   * 400 档取 Tailwind 官方同名值（dark 主题文本用）；
+   * 600 档为满足浅色文本 AA（≥4.5:1 on --gray-50）在官方 600 基础上加深：
+   * cyan/orange/pink 官方 600 对比度仅 3.6~4.4:1，故对齐官方 700 档取值 */
+  --purple-400: #c084fc;
+  --purple-600: #9333ea;
+  --cyan-400: #22d3ee;
+  --cyan-600: #0e7490;
+  --orange-400: #fb923c;
+  --orange-600: #c2410c;
+  --pink-400: #f472b6;
+  --pink-600: #be185d;
+
   /* Primitive：功能色原始值 */
   --green-600: #16a34a;
   --green-400: #4ade80;
@@ -99,9 +112,11 @@
   --bg-surface: #ffffff;
   --bg-raised: var(--gray-100);
 
-  /* Semantic：文本 */
+  /* Semantic：文本
+   * text-secondary 由 gray-600 上调为 gray-700（视觉改版对比度红线）：
+   * #3f3f46 on #fafafa ≈ 10.0:1（≥4.5:1 WCAG AA） */
   --text-primary: var(--gray-900);
-  --text-secondary: var(--gray-600);
+  --text-secondary: var(--gray-700);
   --text-tertiary: var(--gray-500);
   --text-inverse: var(--gray-50);
 
@@ -112,6 +127,48 @@
   /* Semantic：强调色 */
   --accent: var(--brand-600);
   --accent-hover: var(--brand-700);
+
+  /* Semantic：辅助强调色（视觉改版：Agent 色彩标记 / 装饰点缀）
+   * 对比度（on --gray-50 #fafafa）：secondary 5.2:1 / tertiary 5.1:1 /
+   * warm 5.0:1 / pink 5.8:1，全部 ≥4.5:1（WCAG AA） */
+  --accent-secondary: var(--purple-600);
+  --accent-tertiary: var(--cyan-600);
+  --accent-warm: var(--orange-600);
+  --accent-pink: var(--pink-600);
+
+  /* Semantic：装饰背景（纯 CSS gradient，仅装饰层消费，禁止承载内容） */
+  /* Hero 极淡蓝紫线性渐变 */
+  --bg-hero: linear-gradient(
+    135deg,
+    rgb(59 130 246 / 0.08) 0%,
+    rgb(147 51 234 / 0.06) 45%,
+    rgb(34 211 238 / 0.05) 100%
+  );
+  /* 网格线色（极淡，配 [data-decor="grid"]） */
+  --bg-grid-line: rgb(37 99 235 / 0.07);
+  /* 径向光晕（配 Hero / PageHero 氛围层） */
+  --bg-glow: radial-gradient(
+    ellipse at center,
+    rgb(59 130 246 / 0.15) 0%,
+    transparent 70%
+  );
+
+  /* Semantic：毛玻璃（配 .glass，见 decorations.css） */
+  --glass-bg: rgb(255 255 255 / 0.65);
+  --glass-border: rgb(228 228 231 / 0.6);
+  --glass-blur: 10px;
+
+  /* Semantic：发光阴影（强调色 glow，hover 强调场景） */
+  --shadow-glow: 0 0 24px rgb(37 99 235 / 0.18);
+
+  /* Semantic：渐变边框（conic 蓝→紫→青→蓝，配 .gradient-border-card） */
+  --gradient-border: conic-gradient(
+    from 180deg at 50% 50%,
+    var(--brand-600),
+    var(--purple-600),
+    var(--cyan-600),
+    var(--brand-600)
+  );
 
   /* Semantic：功能色 */
   --success: var(--green-600);
