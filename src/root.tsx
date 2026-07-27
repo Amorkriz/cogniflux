@@ -54,6 +54,7 @@ export async function loader() {
     navItems: navigation.main.map(({ label, href }) => ({ label, href })),
     siteTitle: site.title,
     siteUrl,
+    icp: site.icp,
     socials: [
       { label: "网站", href: siteUrl, icon: "globe" },
       ...profile.socials.map(({ platform, url }) => ({
@@ -139,6 +140,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
           siteTitle={loaderData.siteTitle}
           siteUrl={loaderData.siteUrl}
           socials={footerSocials}
+          icp={loaderData.icp}
         />
       </div>
     </AppProviders>

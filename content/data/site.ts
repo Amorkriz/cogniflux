@@ -10,6 +10,7 @@ export interface SiteSettings {
   url: string;
   defaultOg: string;
   locale: string;
+  icp?: string;
 }
 
 export interface NavItem {
@@ -29,6 +30,7 @@ export const siteSettings: SiteSettings = {
   url: "https://cogniflux.me",
   defaultOg: "/og-default.png",
   locale: "zh-CN",
+  icp: "浙ICP备2026058003号-1",
 };
 
 /** 8 个固定栏目，显式配置（不从内容自动生成） */

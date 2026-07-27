@@ -12,6 +12,8 @@ export const siteSettingsSchema = z.object({
   url: z.string().min(1),
   defaultOg: z.string().min(1),
   locale: z.string().min(1),
+  /** ICP 备案号（管局要求页脚展示）；可选，缺省则不渲染 */
+  icp: z.string().min(1).optional(),
 });
 
 export const navItemSchema = z.object({

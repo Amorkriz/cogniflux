@@ -11,10 +11,12 @@ export interface SiteFooterProps {
   siteTitle: string;
   siteUrl: string;
   socials: SiteFooterSocial[];
+  /** ICP 备案号：由壳层从站点配置传入，缺省则不渲染备案行 */
+  icp?: string;
 }
 
 /** 极简页脚：版权 + 社交链接，全部站点信息由 props 传入（与 content/data 同源） */
-export function SiteFooter({ siteTitle, siteUrl, socials }: SiteFooterProps) {
+export function SiteFooter({ siteTitle, siteUrl, socials, icp }: SiteFooterProps) {
   return (
     <footer className="border-t border-default">
       <div className="mx-auto flex max-w-page flex-col items-start justify-between gap-2 px-4 py-6 sm:flex-row sm:items-center sm:px-6">
@@ -41,6 +43,18 @@ export function SiteFooter({ siteTitle, siteUrl, socials }: SiteFooterProps) {
           ))}
         </ul>
       </div>
+      {icp && (
+        <div className="mx-auto max-w-page px-4 pb-6 text-center sm:px-6">
+          <a
+            href="https://beian.miit.gov.cn"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-tertiary transition-colors duration-(--motion-fast) hover:text-primary"
+          >
+            {icp}
+          </a>
+        </div>
+      )}
     </footer>
   );
 }
