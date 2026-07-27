@@ -1,0 +1,174 @@
+/* ============================================================
+ * Cogniflux 设计令牌（唯一事实来源，基线 §9）
+ * 两层结构：
+ *   1. Primitive 层 —— 原料，业务代码禁止直接使用
+ *   2. Semantic 层  —— 业务唯一入口，主题文件只覆盖这一层
+ * :root 中的 Semantic 默认值 = light 主题（无 data-theme 时兜底）
+ * ============================================================ */
+
+:root {
+  /* ------------------------------------------------------------
+   * Primitive：中性灰阶（近中性、微冷，克制工程感基底）
+   * ---------------------------------------------------------- */
+  --gray-50: #fafafa;
+  --gray-100: #f4f4f5;
+  --gray-200: #e4e4e7;
+  --gray-300: #d4d4d8;
+  --gray-400: #a1a1aa;
+  --gray-500: #71717a;
+  --gray-600: #52525b;
+  --gray-700: #3f3f46;
+  --gray-800: #27272a;
+  --gray-900: #18181b;
+  --gray-950: #0f0f11;
+
+  /* Primitive：品牌色阶（单一冷静蓝，唯一强调色） */
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --brand-800: #1e40af;
+  --brand-900: #1e3a8a;
+  --brand-950: #172554;
+
+  /* Primitive：功能色原始值 */
+  --green-600: #16a34a;
+  --green-400: #4ade80;
+  --amber-600: #d97706;
+  --amber-400: #fbbf24;
+  --red-600: #dc2626;
+  --red-400: #f87171;
+  --sky-600: #0284c7;
+  --sky-400: #38bdf8;
+
+  /* Primitive：字号阶梯 */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+  --font-size-5xl: 3rem;
+
+  /* Primitive：间距阶梯（4px 基准） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+  --space-24: 96px;
+  --space-32: 128px;
+
+  /* Primitive：圆角原始值 */
+  --radius-1: 4px;
+  --radius-2: 6px;
+  --radius-3: 10px;
+  --radius-4: 16px;
+  --radius-full: 9999px;
+
+  /* Primitive：阴影原始值 */
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-2: 0 1px 3px rgb(0 0 0 / 0.08), 0 4px 12px rgb(0 0 0 / 0.05);
+  --shadow-3: 0 4px 12px rgb(0 0 0 / 0.1), 0 16px 40px rgb(0 0 0 / 0.12);
+
+  /* Primitive：时长 / 缓动原始值 */
+  --duration-120: 120ms;
+  --duration-200: 200ms;
+  --duration-320: 320ms;
+  --duration-500: 500ms;
+  --easing-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --easing-emphasized: cubic-bezier(0.32, 0.72, 0, 1);
+  --easing-linear: linear;
+
+  /* ------------------------------------------------------------
+   * Semantic：背景三层级
+   * ---------------------------------------------------------- */
+  --bg-base: var(--gray-50);
+  --bg-surface: #ffffff;
+  --bg-raised: var(--gray-100);
+
+  /* Semantic：文本 */
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-600);
+  --text-tertiary: var(--gray-500);
+  --text-inverse: var(--gray-50);
+
+  /* Semantic：边框 */
+  --border-default: var(--gray-200);
+  --border-strong: var(--gray-300);
+
+  /* Semantic：强调色 */
+  --accent: var(--brand-600);
+  --accent-hover: var(--brand-700);
+
+  /* Semantic：功能色 */
+  --success: var(--green-600);
+  --warning: var(--amber-600);
+  --danger: var(--red-600);
+  --info: var(--sky-600);
+
+  /* Semantic：形状 */
+  --radius-card: var(--radius-3);
+  --radius-control: var(--radius-2);
+
+  /* Semantic：阴影 */
+  --shadow-card: var(--shadow-2);
+  --shadow-overlay: var(--shadow-3);
+
+  /* Semantic：遮罩（Dialog/抽屉等覆盖层背后的 scrim） */
+  --overlay-scrim: rgb(0 0 0 / 0.45);
+
+  /* Semantic：节奏（版面间距） */
+  --space-section: var(--space-24);
+  --space-block: var(--space-8);
+
+  /* Semantic：容器 */
+  --container-prose: 65ch;
+  --container-page: 1120px;
+
+  /* Semantic：z-index 阶梯 */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-sticky: 100;
+  --z-overlay: 1000;
+  --z-modal: 1100;
+  --z-toast: 1200;
+
+  /* Semantic：动效 */
+  --motion-fast: var(--duration-120);
+  --motion-base: var(--duration-200);
+  --motion-slow: var(--duration-320);
+  --motion-narrative: var(--duration-500);
+  --ease-out: var(--easing-out);
+  --ease-emphasized: var(--easing-emphasized);
+
+  /* Semantic：焦点环 */
+  --color-focus-ring: var(--brand-500);
+
+  /* Semantic：字体族 / 字重 / 行高 */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --leading-tight: 1.25;
+  --leading-normal: 1.6;
+  --leading-relaxed: 1.75;
+}

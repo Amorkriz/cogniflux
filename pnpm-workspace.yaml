@@ -1,0 +1,5 @@
+# pnpm 设置文件（pnpm ≥10：settings 从 package.json 迁至此处）。
+# 注意：未声明 packages 字段，本仓库仍是单项目（非 monorepo，基线 D2）。
+# 允许 esbuild 执行安装期构建脚本（pnpm 11 起默认拦截依赖构建脚本）。
+allowBuilds:
+  esbuild: true

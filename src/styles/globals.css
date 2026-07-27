@@ -1,0 +1,233 @@
+/* Cogniflux 全局样式：Tailwind v4 CSS-first（无 tailwind.config.js） */
+@import "tailwindcss";
+@import "./tokens.css";
+@import "./themes/light.css";
+@import "./themes/dark.css";
+
+/* dark 变体由 data-theme 驱动（而非 prefers-color-scheme） */
+@custom-variant dark ([data-theme="dark"] &);
+
+/* 长文排版：typography 插件（.prose），下方用令牌定制（基线 §9） */
+@plugin "@tailwindcss/typography";
+
+/* 将 Semantic 令牌映射为 Tailwind 工具类（inline：工具类直接引用
+ * var(--…)，值随 data-theme 实时切换，无需重编译）。
+ * 业务代码只允许使用这些语义类名，禁止裸色值/像素值。 */
+@theme inline {
+  /* 背景：bg-base / bg-surface / bg-raised */
+  --color-base: var(--bg-base);
+  --color-surface: var(--bg-surface);
+  --color-raised: var(--bg-raised);
+
+  /* 文本：text-primary / text-secondary / text-tertiary / text-inverse */
+  --color-primary: var(--text-primary);
+  --color-secondary: var(--text-secondary);
+  --color-tertiary: var(--text-tertiary);
+  --color-inverse: var(--text-inverse);
+
+  /* 边框：border-default / border-strong */
+  --color-default: var(--border-default);
+  --color-strong: var(--border-strong);
+
+  /* 强调与功能色：text-accent / bg-accent / hover:bg-accent-hover … */
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+  --color-focus-ring: var(--color-focus-ring);
+
+  /* 形状：rounded-card / rounded-control */
+  --radius-card: var(--radius-card);
+  --radius-control: var(--radius-control);
+
+  /* 阴影：shadow-card / shadow-overlay */
+  --shadow-card: var(--shadow-card);
+  --shadow-overlay: var(--shadow-overlay);
+
+  /* 遮罩：bg-scrim（覆盖层背后的 scrim） */
+  --color-scrim: var(--overlay-scrim);
+
+  /* 节奏与容器：p-section / gap-block / max-w-prose-container / max-w-page */
+  --spacing-section: var(--space-section);
+  --spacing-block: var(--space-block);
+  --container-prose-container: var(--container-prose);
+  --container-page: var(--container-page);
+
+  /* 动效：duration-fast / duration-base / ease-out-token / ease-emphasized */
+  --animate-duration-fast: var(--motion-fast);
+  --animate-duration-base: var(--motion-base);
+  --ease-out-token: var(--ease-out);
+  --ease-emphasized: var(--ease-emphasized);
+
+  /* 字体：font-sans / font-mono */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
+  /* 覆盖层进出场动画（Radix data-state 驱动）：
+   * animate-overlay-in/out、animate-pop-in/out，时长/缓动来自动效令牌，
+   * 只动 opacity/transform；reduced-motion 时由 motion-reduce:animate-none 关闭 */
+  --animate-overlay-in: overlay-in var(--motion-base) var(--ease-out);
+  --animate-overlay-out: overlay-out var(--motion-fast) var(--ease-out);
+  --animate-pop-in: pop-in var(--motion-base) var(--ease-out);
+  --animate-pop-out: pop-out var(--motion-fast) var(--ease-out);
+  --animate-dialog-in: dialog-in var(--motion-base) var(--ease-out);
+  --animate-dialog-out: dialog-out var(--motion-fast) var(--ease-out);
+
+  /* 呼吸点（animate-breathe）：只动 opacity，时长基于动效令牌派生；
+   * reduced-motion 时由 motion-reduce:animate-none 关闭 */
+  --animate-breathe: breathe calc(var(--motion-narrative) * 4) var(--ease-out)
+    infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ------------------------------------------------------------
+ * .prose 令牌定制（基线 §9：长文排版用 typography 插件 + 令牌定制，
+ * 允许 @apply 于 .prose 这类设计系统底层）：
+ * - 颜色全部映射到语义令牌，随 data-theme 实时切换（无需 prose-invert）
+ * - 正文宽度 65ch（--container-prose）
+ * ---------------------------------------------------------- */
+.prose {
+  max-width: var(--container-prose);
+  --tw-prose-body: var(--text-primary);
+  --tw-prose-headings: var(--text-primary);
+  --tw-prose-lead: var(--text-secondary);
+  --tw-prose-links: var(--accent);
+  --tw-prose-bold: var(--text-primary);
+  --tw-prose-counters: var(--text-tertiary);
+  --tw-prose-bullets: var(--border-strong);
+  --tw-prose-hr: var(--border-default);
+  --tw-prose-quotes: var(--text-secondary);
+  --tw-prose-quote-borders: var(--border-strong);
+  --tw-prose-captions: var(--text-tertiary);
+  --tw-prose-code: var(--text-primary);
+  --tw-prose-pre-code: var(--text-primary);
+  --tw-prose-pre-bg: var(--bg-raised);
+  --tw-prose-th-borders: var(--border-strong);
+  --tw-prose-td-borders: var(--border-default);
+  font-size: var(--font-size-md); /* 移动端正文 ≥16px 防 iOS 缩放 */
+}
+
+.prose a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+.prose a:hover {
+  color: var(--accent-hover);
+}
+
+/* 标题锚点定位：补偿 sticky 顶栏高度 */
+.prose h2,
+.prose h3 {
+  scroll-margin-top: calc(var(--space-section) + 4rem);
+}
+
+/* Shiki 代码块：构建期双主题输出，dark 下切换到 --shiki-dark 变量 */
+.prose pre.shiki {
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  overflow-x: auto;
+}
+[data-theme="dark"] .shiki,
+[data-theme="dark"] .shiki span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+  text-decoration: var(--shiki-dark-text-decoration) !important;
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes overlay-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes pop-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+/* Dialog 居中定位依赖 translate(-50%,-50%)，keyframes 必须包含它，
+ * 否则动画期间 transform 被覆盖会导致位置跳变 */
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 4px)) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 4px)) scale(0.98);
+  }
+}
+
+/* 全局基线 */
+html {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 统一焦点环（无障碍红线） */
+:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* 主题切换时的颜色过渡（尊重 reduced-motion） */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    transition:
+      background-color var(--motion-base) var(--ease-out),
+      color var(--motion-base) var(--ease-out);
+  }
+}

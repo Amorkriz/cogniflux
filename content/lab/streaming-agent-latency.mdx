@@ -1,0 +1,37 @@
+---
+slug: streaming-agent-latency
+title: 流式返回能不能救回 Agent 的等待焦虑
+summary: 一次关于「首字延迟」的实验：在多 Agent 编排里用事件流增量返回，观察对可感知延迟的影响。
+status: published
+createdAt: 2026-07-22
+tags:
+  - agent
+  - latency
+hypothesis: 把单响应改为事件流增量返回，即使总耗时不变，用户可感知等待也会显著下降。
+outcome: success
+learnings:
+  - 首字延迟（TTFB）比总耗时更影响体感，优先优化「开始有反馈」的时间点
+  - 事件流让工具调用过程可观测，调试多轮推理时价值超出预期
+  - 前端需要一个稳定的 AgentEvent 契约，否则流式渲染极易变成一团乱麻
+related:
+  - kind: project
+    slug: flux-agent-runtime
+---
+
+## 背景
+
+在 Flux Agent Runtime 的早期版本里，一次多轮推理往往要等好几秒才「啪」地吐出全部结果。总耗时其实不算离谱，但等待过程完全是黑箱——这正是后端做同步接口时最熟悉的那种焦虑。
+
+## 做法
+
+把网关的返回从单响应改成事件流：`start → delta* → done`，让 UI 拿到第一个 `delta` 就开始渲染。
+
+```ts
+for await (const event of stream) {
+  if (event.type === "delta") append(event.text);
+}
+```
+
+## 结论
+
+总耗时几乎没变，但「开始有反馈」的时间点提前了一个数量级，体感完全不同。假设成立。

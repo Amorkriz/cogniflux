@@ -1,0 +1,27 @@
+---
+slug: hello-cogniflux
+title: Hello, Cogniflux
+summary: Cogniflux 的第一篇种子文章：用于验证 MDX 编译、frontmatter 校验与 Shiki 构建期高亮的完整内容管线。
+status: published
+createdAt: 2026-07-26
+tags:
+  - buildlog
+category: buildlog
+lang: zh
+related:
+  - kind: project
+    slug: cogniflux-platform
+---
+
+这里是 Cogniflux 的第一篇文章。它的使命很单纯：作为内容管线的"活体探针"——只要这篇文章能通过 frontmatter 校验、被 MDX 编译并在构建产物中正常出现，就说明从 `content/` 到页面的链路是通的。
+
+内容与展示分离是这个站点的第一原则。这篇文章本身不会被页面直接 import，未来它会经由 content-io 扫描、Zod 校验，再通过 articles 领域的 repository 提供给列表页与详情页。
+
+代码块用于验证 Shiki 构建期高亮：
+
+```ts
+const greeting: string = "Hello, Cogniflux";
+console.log(greeting);
+```
+
+以上，占位正文结束。

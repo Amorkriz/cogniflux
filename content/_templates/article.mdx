@@ -1,0 +1,31 @@
+---
+# ============ Article frontmatter 模板 ============
+# 复制本文件到 content/articles/{年}/{slug}/index.mdx 后按需修改。
+# 基座字段（BaseContent，全部内容类型共享）：
+slug: my-article-slug # 必填，小写连字符，须与目录名一致，发布后不可改
+title: 文章标题
+summary: 列表页摘要，不超过 160 字，兼作默认 SEO description。 # 必填
+status: draft # draft | published | archived（draft 不进生产构建）
+createdAt: 2026-01-01 # ISO 日期
+# updatedAt: 2026-01-02
+tags: []
+# cover:
+#   src: ./cover.png # 图片与文章同目录存放
+#   alt: 封面说明（无障碍必填）
+# featured: false
+# featuredOrder: 1
+# seo:
+#   title: 自定义 SEO 标题
+#   description: 自定义 SEO 描述
+#   ogImage: ./og.png
+# ---- Article 扩展字段（Zod schema 由任务 4 落地）----
+category: engineering # engineering | agents | thinking | buildlog
+lang: zh
+# series: 系列名
+# seriesIndex: 1
+# related:
+#   - kind: project
+#     slug: some-project
+---
+
+正文从这里开始。

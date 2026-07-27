@@ -1,0 +1,19 @@
+---
+slug: designing-agent-contracts
+title: 为 Agent 设计输入输出契约（草稿）
+summary: 从后端 API 契约思维出发，探讨如何用 schema 约束 Agent 的输入输出，让多 Agent 协作可预期。
+status: draft
+createdAt: 2026-07-24
+tags:
+  - agents
+  - contract
+category: agents
+lang: zh
+related:
+  - kind: project
+    slug: flux-agent-runtime
+---
+
+这是一篇仍在打磨中的草稿：只应在开发环境可见，生产构建会被过滤。
+
+做后端时我们习惯用接口契约约束上下游。做 Agent 时同样的问题回来了：如果每个 Agent 的输入输出都是自由文本，编排层就无从校验。用 schema 把边界钉死，才谈得上可靠的多 Agent 协作。

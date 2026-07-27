@@ -1,0 +1,7 @@
+# Cogniflux robots（基线 §12 SEO 发布基线）
+User-agent: *
+Allow: /
+# 内部组件陈列页不进索引
+Disallow: /dev/ui
+
+Sitemap: https://cogniflux.example.com/sitemap.xml

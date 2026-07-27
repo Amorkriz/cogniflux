@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+/node_modules/
+/.pnpm-store/
+
+# React Router
+/.react-router/
+/build/
+
+# 本地计划文件（AI 协作规则 .qoder/rules 保留入库）
+/.qoder/plans/
