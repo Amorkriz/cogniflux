@@ -26,7 +26,7 @@ export interface Navigation {
 export const siteSettings: SiteSettings = {
   title: "Cogniflux",
   description: "AI Builder 的个人工作台：构建、写作与实验的公开记录。",
-  url: "https://cogniflux.example.com",
+  url: "https://cogniflux.me",
   defaultOg: "/og-default.png",
   locale: "zh-CN",
 };

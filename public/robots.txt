@@ -4,4 +4,4 @@ Allow: /
 # 内部组件陈列页不进索引
 Disallow: /dev/ui
 
-Sitemap: https://cogniflux.example.com/sitemap.xml
+Sitemap: https://cogniflux.me/sitemap.xml
