@@ -1,0 +1,24 @@
+# 依赖与缓存（体积巨大，必须排除）
+node_modules
+.pnpm-store
+
+# 构建产物（镜像内重新构建）
+build
+.react-router
+
+# 版本库与工具目录
+.git
+.qoder
+.github
+
+# 非构建必需
+tests
+docs
+README.md
+AGENTS.md
+
+# 环境与容器文件自身
+.env*
+!.env.example
+Dockerfile
+.dockerignore
