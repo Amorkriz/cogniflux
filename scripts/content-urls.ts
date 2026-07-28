@@ -139,8 +139,8 @@ export const STATIC_PATHS = [
   "/about",
 ];
 
-/** 不进 sitemap 的 prerender 路径 */
-export const INTERNAL_PATHS = ["/dev/ui", "/404"];
+/** 不进 sitemap 的 prerender 路径（/workspace 为私有页，只出轻量壳） */
+export const INTERNAL_PATHS = ["/dev/ui", "/404", "/workspace"];
 
 /** published 文章（RSS + 详情路径），createdAt 倒序 */
 export function getPublishedArticles(): FeedEntry[] {

@@ -1,7 +1,7 @@
 import type { RouteConfig } from "@react-router/dev/routes";
 import { index, route } from "@react-router/dev/routes";
 
-/** 路由表：8 个栏目 + 4 条详情路由 + /dev/ui 组件陈列页（内部，不进 sitemap）+ 404 兜底 */
+/** 路由表：8 个栏目 + 4 条详情路由 + /dev/ui 组件陈列页 + /workspace 私有页（内部，不进 sitemap）+ 404 兜底 */
 export default [
   index("pages/home/index.tsx"),
   route("agents", "pages/agents/index.tsx"),
@@ -16,5 +16,6 @@ export default [
   route("toolbox", "pages/toolbox/index.tsx"),
   route("about", "pages/about/index.tsx"),
   route("dev/ui", "pages/dev-ui/index.tsx"),
+  route("workspace", "pages/workspace/index.tsx"),
   route("*", "pages/not-found.tsx"),
 ] satisfies RouteConfig;
