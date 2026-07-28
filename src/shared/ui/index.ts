@@ -1,4 +1,9 @@
 /** shared/ui 公开边界：零业务语义的基础组件，仅消费语义令牌（基线 §10） */
+export {
+  AudioPlayer,
+  audioPlayerVariants,
+  type AudioPlayerProps,
+} from "./AudioPlayer";
 export { Badge, badgeVariants, type BadgeProps } from "./Badge";
 export { Button, buttonVariants, type ButtonProps } from "./Button";
 export { Card, cardVariants, type CardProps } from "./Card";

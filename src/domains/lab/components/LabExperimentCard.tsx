@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 
-import { Badge, Card } from "@/shared/ui";
+import { Badge, Card, Music } from "@/shared/ui";
 import { formatDate } from "@/shared/utils";
 
 import type { LabExperiment, LabOutcome } from "../types";
@@ -56,6 +56,12 @@ export function LabExperimentCard({ experiment }: LabExperimentCardProps) {
           </Link>
         </h3>
         <p className="line-clamp-3 text-sm text-secondary">{experiment.summary}</p>
+        {experiment.audio ? (
+          <p className="flex items-center gap-1.5 text-xs text-tertiary">
+            <Music aria-hidden="true" className="size-3.5 shrink-0" />
+            附音频作品
+          </p>
+        ) : null}
       </article>
     </Card>
   );

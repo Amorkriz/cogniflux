@@ -17,4 +17,12 @@ export const labSchema = baseContentSchema.extend({
   outcome: labOutcomeSchema,
   learnings: z.array(z.string()).default([]),
   related: contentRefSchema.array().default([]),
+  /** 可选音频作品（如 AI 音乐实验）：src 指向 public 下静态资源 */
+  audio: z
+    .object({
+      src: z.string().min(1),
+      duration: z.number().positive().optional(),
+      caption: z.string().optional(),
+    })
+    .optional(),
 });

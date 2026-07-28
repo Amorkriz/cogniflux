@@ -18,6 +18,7 @@ import { FadeIn, SlideUp } from "@/shared/motion";
 import { buildMeta } from "@/shared/seo";
 import {
   ArrowLeft,
+  AudioPlayer,
   Badge,
   Card,
   Check,
@@ -142,6 +143,30 @@ export default function LabDetail({ loaderData }: Route.ComponentProps) {
           <Prose body={Body} />
         </Suspense>
       </FadeIn>
+
+      {experiment.audio ? (
+        <FadeIn delay={0.21} className="mt-section">
+          <section aria-labelledby="lab-audio" className="max-w-prose-container">
+            <h2
+              id="lab-audio"
+              className="text-xl font-semibold tracking-tight text-primary"
+            >
+              聆听作品
+            </h2>
+            <AudioPlayer
+              className="mt-4"
+              src={experiment.audio.src}
+              title={experiment.title}
+              duration={experiment.audio.duration}
+            />
+            {experiment.audio.caption ? (
+              <p className="mt-3 text-sm text-tertiary">
+                {experiment.audio.caption}
+              </p>
+            ) : null}
+          </section>
+        </FadeIn>
+      ) : null}
 
       {experiment.learnings.length > 0 ? (
         <FadeIn delay={0.24} className="mt-section">
