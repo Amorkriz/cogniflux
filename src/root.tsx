@@ -15,7 +15,7 @@ import "@/styles/globals.css";
 import { getProfile } from "@/domains/profile";
 import { getNavigation, getSiteSettings } from "@/domains/site";
 import { AppProviders } from "@/app/providers";
-import { SiteFooter, SiteHeader } from "@/shared/components";
+import { CompanionHost, SiteFooter, SiteHeader } from "@/shared/components";
 import { PageTransition } from "@/shared/motion";
 import { THEME_STORAGE_KEY } from "@/shared/utils/theme";
 import { buttonVariants, GitBranch, Globe, Mail, Rss } from "@/shared/ui";
@@ -142,6 +142,8 @@ export default function App({ loaderData }: Route.ComponentProps) {
           socials={footerSocials}
           icp={loaderData.icp}
         />
+        {/* 全站常驻看板娘，移除此行即整体下线（docs/adr/ADR-009） */}
+        <CompanionHost />
       </div>
     </AppProviders>
   );

@@ -26,6 +26,7 @@ export {
   Info,
   Mail,
   Menu,
+  Minus,
   Moon,
   PenLine,
   Rss,

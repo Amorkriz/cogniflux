@@ -1,4 +1,8 @@
 /** shared/components 公开边界：≥2 个领域复用的复合通用组件（基线 §10） */
+export {
+  CompanionHost,
+  type CompanionHostProps,
+} from "./companion/companion-host";
 export { MobileNav, type MobileNavProps } from "./MobileNav";
 export { PageHero, type PageHeroProps } from "./PageHero";
 export { Prose, type ProseProps } from "./Prose";

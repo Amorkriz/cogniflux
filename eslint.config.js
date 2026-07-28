@@ -11,6 +11,7 @@ export default tseslint.config(
       "build/**",
       ".react-router/**",
       ".pnpm-store/**",
+      ".qoder/**",
     ],
   },
   js.configs.recommended,
@@ -75,6 +76,34 @@ export default tseslint.config(
               ],
               message:
                 "shared 层禁止依赖 domains/pages（依赖方向：pages → domains → shared）。",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // 依赖方向红线 3：companion 服务层为纯逻辑层，禁止依赖任何 UI 层
+  //（domains/pages/shared），保证看板娘逻辑可独立测试与复用。
+  {
+    files: ["src/services/companion/**/*"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@/domains/*",
+                "@/domains/**",
+                "@/pages/*",
+                "@/pages/**",
+                "@/shared/*",
+                "@/shared/**",
+                "**/domains/**",
+                "**/pages/**",
+              ],
+              message:
+                "companion 服务层为纯逻辑层，禁止 import domains/pages/shared（UI 只单向消费 @/services/companion）。",
             },
           ],
         },

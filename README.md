@@ -65,7 +65,7 @@ docs/               # 项目文档 + ADR
 | [docs/CONTENT.md](./docs/CONTENT.md) | 内容写作规范：frontmatter 字段字典、slug 纪律、related 机制 |
 | [docs/DESIGN.md](./docs/DESIGN.md) | 设计令牌与主题使用法、动效规范、CVA 规范 |
 | [docs/CHECKLIST.md](./docs/CHECKLIST.md) | 发布前检查清单 |
-| [docs/adr/](./docs/adr/) | ADR-001…008 架构决策记录 |
+| [docs/adr/](./docs/adr/) | ADR-001…009 架构决策记录 |
 | [AGENTS.md](./AGENTS.md) | AI 协作规则（AI 编码工具每次会话自动读取） |
 
 ## 内容写作入门（三步）

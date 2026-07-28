@@ -112,19 +112,22 @@ graph TB
 3. 出现第二个消费方时，把 `src/domains/*/schema.ts` 抽到 `packages/content-schema`，原位置 re-export 保持兼容。
 4. Agent 后端以 `apps/agent-api` 新增，前端只把 `AgentGateway` 的实现从 mock 换成 fetch 版。
 
-## 8. 看板娘 / TwinSparkBot 集成预留（视觉改版，未实施）
+## 8. 看板娘 / TwinSparkBot（已落地）
 
-本节只是设计预留，**当前不落任何代码/目录**（遵守“不建空目录/预防性抽象”红线）。
+> 详细的形象制作/更换指南见 [COMPANION.md](./COMPANION.md)，决策依据见 [ADR-009](./adr/ADR-009-看板娘形象与代码解耦.md)。本节取代早期“首页 Hero `companion-slot` 首次交互挂载 + `src/services/live2d/`”的预留方案（首页空槽位已删除，Live2D 路线已否决，见 ADR-009）。
 
-- **挂载位约定**：首页 Hero 内预留 `<div id="companion-slot">` 空容器（由首页重构任务落地），作为看板娘形象的唯一挂载点；容器本身不影响布局与 LCP。
-- **懒加载 facade 设计**（届时实施）：形象运行时（如 Live2D）以动态 `import()` 拆独立 chunk，**首次用户交互（hover/click 挂载位）后才加载**，首屏零额外 JS；加载失败静默降级（挂载位保持空容器，不报错不占位）。
-- **触发条件**：正式集成时才新建 `src/services/live2d/`（facade + 加载器）；在那之前禁止建目录骨架。
-- **安全边界**：看板娘的对话能力必须走 `src/services/agent/` 的 AgentGateway 接口（当前为 mock，将来换 fetch 实现），**前端永不持有任何 Key/Token**，禁止在看板娘层直接调用 LLM SDK。
+- **挂载位**：`src/root.tsx` 布局层全站常驻右下角 `<CompanionHost />`。移除该行即可全站下线。
+- **代码结构**：`src/services/companion/{types, prefs, bridge, loader, index}.ts` 为纯逻辑层（ESLint 第三条 `no-restricted-imports` 规则禁止其 import `domains/pages/shared`）；`src/shared/components/companion/{companion-host, companion-poster, companion-stage}.tsx` 为展示组件。
+- **双形态与降级**：水合后 `requestIdleCallback` 探测 `public/companion/companion.riv`——存在则懒加载 Rive 模式（`@rive-app/react-canvas-lite` 独立 chunk，不进首屏关键路径，守 ADR-006 首页 180KB gzip 预算）；不存在或加载/运行失败则**静默回退**静态立绘模式（`public/companion/poster.webp` + 仅 transform 的呼吸浮动，尊重 reduced-motion）。
+- **双契约**（形象与代码解耦的关键，见 ADR-009）：契约 A 资产路径固定；契约 B 状态机命名固定（State Machine 名 `Companion`、五状态见 `src/services/companion/types.ts` 的 `COMPANION_STATES`，契约快照测试守护）。更换形象零代码改动。
+- **用户偏好**：`localStorage` 的 `companion:dismissed` / `companion:minimized`；移动端默认收起；关闭后不再渲染。
+- **安全边界**：`bridge.ts` 纯函数 `agentEventToCompanionState` 预埋 Agent 事件到状态的映射，本期不真实订阅；二期接 `src/services/agent/` 的 AgentGateway，**前端永不持有任何 Key/Token**（ADR-008 边界不变），禁止在看板娘层直接调用 LLM SDK。
 
 ## 9. 相关文档
 
 - [CONTENT.md](./CONTENT.md)：内容写作规范与 frontmatter 字段字典
 - [DESIGN.md](./DESIGN.md)：设计令牌与主题使用法
 - [CHECKLIST.md](./CHECKLIST.md)：发布前检查清单
-- [adr/](./adr/)：ADR-001…008 架构决策记录
+- [COMPANION.md](./COMPANION.md)：看板娘形象制作与更换指南
+- [adr/](./adr/)：ADR-001…009 架构决策记录
 - [../AGENTS.md](../AGENTS.md)：AI 协作规则（每次会话自动读取）

@@ -91,11 +91,6 @@ export function HeroSection({ profile }: HeroSectionProps) {
 
         <HeroDecoration />
       </div>
-
-      {/* 看板娘挂载位（docs/ARCHITECTURE.md §8）：未来 TwinSparkBot 形象的
-       * 唯一挂载点——首次交互后动态 import 独立 chunk，当前为空容器，
-       * 不影响布局与 LCP；正式集成前禁止建 services/live2d 目录 */}
-      <div id="companion-slot" aria-hidden="true" data-companion-slot />
     </section>
   );
 }

@@ -38,7 +38,7 @@ content-io 只服务 domains 的 repository
 
 ## 文档指路
 
-- 架构与偏差记录：`docs/ARCHITECTURE.md`；决策依据：`docs/adr/ADR-001…008`
+- 架构与偏差记录：`docs/ARCHITECTURE.md`；决策依据：`docs/adr/ADR-001…009`
 - 内容规范/frontmatter 字典：`docs/CONTENT.md`；令牌与主题：`docs/DESIGN.md`
 - 发布前检查：`docs/CHECKLIST.md`
 

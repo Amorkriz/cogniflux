@@ -20,6 +20,9 @@ importers:
       '@react-router/node':
         specifier: ^8
         version: 8.3.0(react-router@8.3.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(typescript@5.9.3)
+      '@rive-app/react-canvas-lite':
+        specifier: ^4.30.0
+        version: 4.30.0(react@19.2.8)
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -882,6 +885,14 @@ packages:
 
   '@remix-run/node-fetch-server@0.13.3':
     resolution: {integrity: sha512-UfjOXed/DQteaM5VyTfqTeGpHwyL2J5aoRGY6cydip4tt1ehNNeSwuXCC7AEGE0RWBs/7bgKxYkL/B/+UDe4AA==}
+
+  '@rive-app/canvas-lite@2.39.1':
+    resolution: {integrity: sha512-0TNYD2QKF9S0k9+eB1LtArTCrzXPdecEQnrjdg2EXGuF7sDVcpUDP5cU4Hjf6ZqcsA+y05pWe9srhl0tUFsSOw==}
+
+  '@rive-app/react-canvas-lite@4.30.0':
+    resolution: {integrity: sha512-Z2iQ/aiySIDpYW0KeepGxtB4uX6FzcuYs38dhnStp//oqHlsg8lG8XVB6kzPHAD2GRagn/LvoHT+c5oeBu2E9w==}
+    peerDependencies:
+      react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0
 
   '@rolldown/binding-android-arm64@1.1.5':
     resolution: {integrity: sha512-lZg8fqIv2v7FF237bwMgzGZEJvGL79/s5knJ/i6FmsGF4XXlzccZ4jb+TrFIxtSSxFtIpdsgrPZeMk1I9AFcyQ==}
@@ -4429,6 +4440,13 @@ snapshots:
     optional: true
 
   '@remix-run/node-fetch-server@0.13.3': {}
+
+  '@rive-app/canvas-lite@2.39.1': {}
+
+  '@rive-app/react-canvas-lite@4.30.0(react@19.2.8)':
+    dependencies:
+      '@rive-app/canvas-lite': 2.39.1
+      react: 19.2.8
 
   '@rolldown/binding-android-arm64@1.1.5':
     optional: true
