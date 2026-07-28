@@ -68,6 +68,17 @@ export default defineConfig({
       "@content": path.resolve(rootDir, "content"),
     },
   },
+  server: {
+    // dev 下将 /api 代理到本机 orchestrator 后端（含 WS），
+    // 保持与生产 nginx 同源模型一致：前端始终走相对路径 /api/*。
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:8000",
+        changeOrigin: false,
+        ws: true,
+      },
+    },
+  },
   test: {
     include: ["tests/**/*.test.{ts,tsx}"],
   },

@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# 生产构建公开配置（仅 VITE_ 前缀，无密钥，需入库）
+!.env.production
 /node_modules/
 /.pnpm-store/
 

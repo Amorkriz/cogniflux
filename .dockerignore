@@ -20,5 +20,7 @@ AGENTS.md
 # 环境与容器文件自身
 .env*
 !.env.example
+# 生产构建公开配置（仅 VITE_ 前缀）：builder 阶段 pnpm build 需读取它切 real 模式
+!.env.production
 Dockerfile
 .dockerignore
