@@ -5,10 +5,8 @@
 export { agentEventToCompanionState } from "./bridge";
 export { canRenderCanvas, detectCompanionAsset } from "./loader";
 export {
-  COMPANION_DISMISSED_KEY,
   COMPANION_MINIMIZED_KEY,
   getCompanionPrefs,
-  setCompanionDismissed,
   setCompanionMinimized,
 } from "./prefs";
 export {

@@ -17,8 +17,6 @@ export type CompanionState =
 
 /** 用户对看板娘的持久化偏好 */
 export interface CompanionPreferences {
-  /** 已关闭（不再展示） */
-  dismissed: boolean;
   /** 已收起为唤起按钮 */
   minimized: boolean;
 }

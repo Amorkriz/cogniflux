@@ -2,12 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   agentEventToCompanionState,
-  COMPANION_DISMISSED_KEY,
   COMPANION_MINIMIZED_KEY,
   COMPANION_STATE_MACHINE,
   COMPANION_STATES,
   getCompanionPrefs,
-  setCompanionDismissed,
   setCompanionMinimized,
 } from "@/services/companion";
 
@@ -42,28 +40,24 @@ afterEach(() => {
 });
 
 describe("companion prefs（localStorage 持久化）", () => {
-  it("默认（无 window）返回全 false", () => {
-    expect(getCompanionPrefs()).toEqual({ dismissed: false, minimized: false });
+  it("默认（无 window）返回 false", () => {
+    expect(getCompanionPrefs()).toEqual({ minimized: false });
   });
 
   it("正常读写往返：写入后能读回", () => {
     const store = stubWorkingLocalStorage();
-    setCompanionDismissed(true);
     setCompanionMinimized(true);
-    expect(store.get(COMPANION_DISMISSED_KEY)).toBe("true");
     expect(store.get(COMPANION_MINIMIZED_KEY)).toBe("true");
-    expect(getCompanionPrefs()).toEqual({ dismissed: true, minimized: true });
+    expect(getCompanionPrefs()).toEqual({ minimized: true });
 
-    setCompanionDismissed(false);
     setCompanionMinimized(false);
-    expect(getCompanionPrefs()).toEqual({ dismissed: false, minimized: false });
+    expect(getCompanionPrefs()).toEqual({ minimized: false });
   });
 
   it("localStorage 抛异常时静默降级，不抛错", () => {
     stubThrowingLocalStorage();
-    expect(() => setCompanionDismissed(true)).not.toThrow();
     expect(() => setCompanionMinimized(true)).not.toThrow();
-    expect(getCompanionPrefs()).toEqual({ dismissed: false, minimized: false });
+    expect(getCompanionPrefs()).toEqual({ minimized: false });
   });
 });
 

@@ -13,11 +13,10 @@ import {
   canRenderCanvas,
   detectCompanionAsset,
   getCompanionPrefs,
-  setCompanionDismissed,
   setCompanionMinimized,
 } from "@/services/companion";
 import { FadeIn } from "@/shared/motion";
-import { Bot, Minus, X } from "@/shared/ui";
+import { Bot, Minus } from "@/shared/ui";
 import { cn } from "@/shared/utils";
 
 import type { CompanionStageProps } from "./companion-stage";
@@ -73,9 +72,12 @@ function useIsMobile(): boolean {
   );
 }
 
-/** 控制按钮统一样式：≥44px 触控目标 + 语义令牌 + 全局焦点环 */
+/**
+ * 控制按钮：视觉 28px（size-7）更精致，伪元素热区向外扩 8px（-inset-2）
+ * 使实际触控目标仍为 44×44px（无障碍红线）；焦点环用全局 :focus-visible。
+ */
 const controlButtonClass =
-  "inline-flex size-11 items-center justify-center rounded-control text-tertiary transition-colors duration-(--motion-fast) hover:bg-raised hover:text-primary";
+  "relative inline-flex size-7 items-center justify-center rounded-control border border-default bg-surface text-tertiary shadow-card transition-colors duration-(--motion-fast) before:absolute before:-inset-2 before:content-[''] hover:bg-raised hover:text-primary";
 
 export interface CompanionHostProps {
   className?: string;
@@ -84,7 +86,7 @@ export interface CompanionHostProps {
 /**
  * 全站看板娘宿主（TwinSparkBot，ADR-009）：
  * - 水合门控：prerender HTML 完全不含看板娘，挂载后才渲染；
- * - 偏好：dismissed → 不渲染；minimized / 移动端 → 圆形唤起按钮；
+ * - 偏好：minimized / 移动端 → 圆形唤起按钮，随时可展开找回；
  * - 形象策略：空闲期 HEAD 探测 Rive 资产，命中且 canvas 可用 → lazy 舞台，
  *   否则（含舞台运行期出错）回退静态 poster；
  * - 固定右下角 + 固定尺寸防 CLS，z 层用 --z-overlay 令牌。
@@ -94,10 +96,7 @@ export function CompanionHost({ className }: CompanionHostProps) {
   // 移动端（≤640px）默认收起为唤起按钮，点击展开后本次会话内保持展开
   const isMobile = useIsMobile();
   const [mobileExpanded, setMobileExpanded] = useState(false);
-  // prefs 惰性初始化：SSR 无 window 时全 false；水合前输出恒为 null，无错配风险
-  const [dismissed, setDismissed] = useState(
-    () => getCompanionPrefs().dismissed,
-  );
+  // prefs 惰性初始化：SSR 无 window 时为 false；水合前输出恒为 null，无错配风险
   const [minimized, setMinimized] = useState(
     () => getCompanionPrefs().minimized,
   );
@@ -140,12 +139,7 @@ export function CompanionHost({ className }: CompanionHostProps) {
     setMobileExpanded(false);
   }, []);
 
-  const dismiss = useCallback(() => {
-    setDismissed(true);
-    setCompanionDismissed(true);
-  }, []);
-
-  if (!hydrated || dismissed) return null;
+  if (!hydrated) return null;
 
   if (minimized || (isMobile && !mobileExpanded)) {
     return (
@@ -155,9 +149,9 @@ export function CompanionHost({ className }: CompanionHostProps) {
             type="button"
             aria-label="展开看板娘"
             onClick={expand}
-            className="inline-flex size-11 items-center justify-center rounded-full border border-default bg-surface text-secondary shadow-card transition-colors duration-(--motion-fast) hover:bg-raised hover:text-primary"
+            className="relative inline-flex size-9 items-center justify-center rounded-full border border-default bg-surface text-secondary shadow-card transition-colors duration-(--motion-fast) before:absolute before:-inset-1 before:content-[''] hover:bg-raised hover:text-primary"
           >
-            <Bot aria-hidden="true" className="size-5" />
+            <Bot aria-hidden="true" className="size-4" />
           </button>
         </FadeIn>
       </div>
@@ -175,24 +169,14 @@ export function CompanionHost({ className }: CompanionHostProps) {
     >
       <FadeIn>
         <div className="flex flex-col items-end gap-2">
-          <div className="flex gap-1 rounded-card border border-default bg-surface shadow-card">
-            <button
-              type="button"
-              aria-label="收起看板娘"
-              onClick={collapse}
-              className={controlButtonClass}
-            >
-              <Minus aria-hidden="true" className="size-5" />
-            </button>
-            <button
-              type="button"
-              aria-label="关闭看板娘"
-              onClick={dismiss}
-              className={controlButtonClass}
-            >
-              <X aria-hidden="true" className="size-5" />
-            </button>
-          </div>
+          <button
+            type="button"
+            aria-label="收起看板娘"
+            onClick={collapse}
+            className={controlButtonClass}
+          >
+            <Minus aria-hidden="true" className="size-4" />
+          </button>
           {/* 形象区固定尺寸（size-40）防 CLS：poster 与 Rive 舞台同尺寸 */}
           <div className="size-40">
             {showStage ? (

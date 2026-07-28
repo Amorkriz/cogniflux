@@ -5,7 +5,6 @@
 
 import type { CompanionPreferences } from "./types";
 
-export const COMPANION_DISMISSED_KEY = "companion:dismissed";
 export const COMPANION_MINIMIZED_KEY = "companion:minimized";
 
 function readFlag(key: string): boolean {
@@ -26,17 +25,11 @@ function writeFlag(key: string, value: boolean): void {
   }
 }
 
-/** 读取看板娘偏好（未设置/不可用时全部为 false） */
+/** 读取看板娘偏好（未设置/不可用时为 false） */
 export function getCompanionPrefs(): CompanionPreferences {
   return {
-    dismissed: readFlag(COMPANION_DISMISSED_KEY),
     minimized: readFlag(COMPANION_MINIMIZED_KEY),
   };
-}
-
-/** 持久化"已关闭"偏好 */
-export function setCompanionDismissed(dismissed: boolean): void {
-  writeFlag(COMPANION_DISMISSED_KEY, dismissed);
 }
 
 /** 持久化"已收起"偏好 */
