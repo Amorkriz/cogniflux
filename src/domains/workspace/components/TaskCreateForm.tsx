@@ -60,7 +60,7 @@ export function TaskCreateForm({
             onChange={(event) => setPrompt(event.target.value)}
             disabled={disabled}
             rows={2}
-            placeholder="用自然语言描述要执行的编码任务…"
+            placeholder="用自然语言描述要交给智能体的任务…"
             className="min-h-11 w-full resize-y rounded-control border border-default bg-surface px-3 py-2.5 text-sm text-primary transition-colors duration-(--motion-fast) placeholder:text-tertiary hover:border-strong disabled:cursor-not-allowed disabled:opacity-50"
           />
         </label>

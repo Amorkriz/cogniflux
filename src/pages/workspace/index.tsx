@@ -53,7 +53,7 @@ export default function Workspace() {
       <PageHero
         eyebrow="workspace"
         title="Workspace"
-        description="私有任务工作台——向本机编码 Agent 派发任务并实时跟踪执行。"
+        description="协调人类与智能体的私有工作台——编排与调度多个智能体，协同你的个人工作流。"
       />
       {mounted ? (
         <Suspense fallback={<WorkspaceSkeleton />}>

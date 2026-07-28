@@ -27,7 +27,7 @@ export const nowUpdates = [
   {
     slug: "2026-06",
     title: "2026 年 6 月：从后端到 Builder 的起点",
-    summary: "决定把十年 Java 后端经验公开沉淀，用一个属于自己的站点记录转型。",
+    summary: "决定把四年 Java 后端经验公开沉淀，用一个属于自己的站点记录转型。",
     status: "published",
     createdAt: "2026-06-01",
     date: "2026-06",

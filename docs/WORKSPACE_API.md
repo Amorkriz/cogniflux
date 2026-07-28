@@ -95,7 +95,7 @@
 { "actorType": "agent", "actorId": "agt_01HXXXXXX" }
 ```
 
-- `actorType`：`"user"`（人）或 `"agent"`（编码 Agent）。
+- `actorType`：`"user"`（人）或 `"agent"`（智能体）。
 - `actorId`：`user` 时为用户标识（单用户站固定 `"owner"`）；`agent` 时为 Agent 的 `id`。
 - 后续扩展新行动者类型（如 `"system"`）属于兼容性新增，消费方遇到未知 `actorType` 应容忍并降级展示。
 
