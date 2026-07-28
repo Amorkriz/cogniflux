@@ -17,7 +17,7 @@ describe("site repository", () => {
     const nav = await getNavigation();
     const orders = nav.main.map((i) => i.order);
     expect([...orders]).toEqual([...orders].sort((a, b) => a - b));
-    expect(nav.main).toHaveLength(8);
+    expect(nav.main).toHaveLength(9);
   });
 
   it("spotlight 解析为展示级链接", async () => {

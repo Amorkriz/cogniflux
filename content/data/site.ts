@@ -33,7 +33,7 @@ export const siteSettings: SiteSettings = {
   icp: "浙ICP备2026058003号-1",
 };
 
-/** 8 个固定栏目，显式配置（不从内容自动生成） */
+/** 9 个固定栏目，显式配置（不从内容自动生成） */
 export const navigation: Navigation = {
   main: [
     { label: "Home", href: "/", order: 1 },
@@ -44,6 +44,7 @@ export const navigation: Navigation = {
     { label: "Projects", href: "/projects", order: 6 },
     { label: "Toolbox", href: "/toolbox", order: 7 },
     { label: "About", href: "/about", order: 8 },
+    { label: "Workspace", href: "/workspace", order: 9 },
   ],
   footer: [],
 };
