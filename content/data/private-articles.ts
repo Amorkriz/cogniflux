@@ -12,4 +12,6 @@ export interface PrivateArticleRegistryEntry {
   createdAt: string;
 }
 
-export const privateArticles: PrivateArticleRegistryEntry[] = [];
+export const privateArticles: PrivateArticleRegistryEntry[] = [
+  { slug: "p-2026-001", createdAt: "2026-07-31" },
+];

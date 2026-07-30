@@ -1,0 +1,629 @@
+---
+slug: p-2026-001
+title: 私密文章
+summary: 该文章仅作者可见。
+status: published
+visibility: private
+createdAt: 2026-07-31
+tags: []
+category: engineering
+lang: zh
+---
+
+# 一个 Java 后端的前端开窍笔记
+
+## 〇 写给未来的我
+
+这篇笔记是写给未来的我自己的。
+
+为什么要学前端？不是因为"全栈"这个词好听，而是因为我想成为一个真正的 AI Builder——能独立把一个想法从模型层做到用户指尖的人。过去几年我写 Java 后端，习惯了接口、服务、数据库这条链路，但每次想法走到"用户能看见、能点、能用"这一步，就得停下来等别人，或者搬一个丑陋的管理后台模板凑合。AI 时代的产品迭代速度不允许这种断层：模型能力一天一个样，验证一个想法的窗口期以周计，如果连一个像样的界面都攒不出来，再好的后端功力也只能停在 curl 和日志里。
+
+所以给自己立一条总验收标准，不谈虚的："**独立给本博客（Cogniflux）做一个完整功能并上线**"——从需求拆解、schema 设计、组件编写、路由接线，到构建部署，全程不求人。做到这一条，才算真正开窍；做不到，学再多概念都是纸上谈兵。
+
+预期节奏：不求快，求"每个概念都用 Java 的旧地图校准过"。第一轮先把 TypeScript 和 React 的世界观立住（就是这篇的主体）；第二轮回到本站代码里做小改造练手；第三轮独立上功能。每一轮结束回来更新这篇笔记。
+
+所以请注意：**这是一份活文档**。里面的"坑与顿悟记录"（第六节）会持续追加，学习路线图（第五节）的勾会一个一个打上。未来的我，如果你回来读到某段话觉得幼稚，别删，划掉并在旁边写上你现在的理解——那条修改轨迹本身，就是这篇笔记存在的意义。
+
+## 一 先纠正世界观
+
+学一门新技术，最危险的不是零基础，而是带着旧地图进新城市。我在 Java 世界里养成的所有直觉，几乎每一条都需要先"吊销"再"重考"。所以在碰任何语法之前，先把两个世界的总纲对齐。
+
+**Java 的世界：长生命周期进程，集中式状态，编译部署一体。**
+
+一个 Spring Boot 应用启动后，是一个可能活几周甚至几个月的 JVM 进程。它跑在**我控制的机器**上：我知道它的 JDK 版本、内存参数、依赖树里每一个 jar。状态是集中的——数据库、Redis、内存里的单例 Bean，都在服务端这一侧，客户端只是个来去匆匆的请求发起者。代码从编译到部署是一条封闭链路：javac 编译出的字节码，跑在我指定版本的 JVM 上，环境是确定的、可复现的。
+
+**前端的世界：代码跑在别人的浏览器里，进程随标签页生灭，状态皆临时。**
+
+我写的 JS/TS 代码，最终在**用户的设备**上执行——那可能是最新的 Chrome，也可能是三年没更新的国产浏览器，性能可能是 M 芯片也可能是千元机。我对运行环境的控制力约等于零，这就是为什么前端世界痴迷于"兼容性"、"降级"、"渐进增强"这些在后端听起来很陌生的词。
+
+更颠覆的是生命周期。用户打开标签页，我的"进程"诞生；用户关掉标签页（或者只是刷新一下），进程灰飞烟灭，**所有内存状态归零**。没有人跟你商量，没有 shutdown hook 可以指望。所以前端的一切状态设计都围绕一个前提：状态皆临时，需要持久的东西必须立刻送走——发给服务端，或者写进 localStorage 这类浏览器存储。
+
+这个总纲一旦立住，很多"前端为什么这么怪"的问题会自动消解：
+
+- 为什么前端这么在意打包体积？因为代码是**现场下载再执行**的，每多 100KB，用户就多等一截。Java 的 jar 包多大没人关心，因为它早就躺在服务器上了。
+- 为什么前端框架都在管"状态"？因为状态是易碎品，进程说没就没，框架必须给状态的生灭、共享、恢复立规矩。
+- 为什么 TS 的类型在运行时会消失（后面细讲）？因为浏览器只认 JS，TS 只是开发期的"描述层"，交付物永远是 JS。
+
+一句话总结这次世界观校准：**Java 工程师是"房东"，代码住在自己的房子里；前端工程师是"客人"，代码寄宿在千千万万个陌生人的浏览器里。** 客人的美德是行李轻、适应力强、随时准备被扫地出门——前端所有的工程范式，都是这种美德的技术表达。
+
+## 二 TypeScript：一门"描述"型语言
+
+先给 TypeScript 定性：它不是"另一门 Java"，而是**给 JavaScript 这门动态语言追加的一层静态描述**。Java 的类型是语言的地基，参与编译、参与运行、参与内存布局；TS 的类型是贴在 JS 上的注释层，编译后**全部撕掉**，运行时一个字节都不剩。理解了"描述"这个定位，下面六个概念就都顺了。
+
+以下每个概念都按同一个套路展开：先给"Java 翻译"（用 Java 的概念快速对齐），再标出"翻译失真点"（直译会在哪里翻车），最后上对照代码——错误行用注释标注真实的编译器报错。
+
+### 2.1 结构化类型：TS 认长相，不认名分
+
+**Java 翻译**：Java 的类型系统是"名义类型"（nominal typing）——两个类哪怕字段完全一样，不显式 `implements` 同一个接口，就是两个不相干的类型。类型兼容看"血统证书"。
+
+**翻译失真点**：TS 是"结构化类型"（structural typing）——**只看形状，不看名字**。两个 interface 只要成员对得上，就可以互相赋值，管你们认不认识。第一次见到这个行为，Java 人会怀疑编译器坏了。
+
+```ts
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface Vector {
+  x: number;
+  y: number;
+}
+
+const p: Point = { x: 1, y: 2 };
+
+// Java 人震惊点：Vector 和 Point 素不相识，赋值却完全合法——
+// 因为它们"长得一样"。TS 压根不在乎名字。
+const v: Vector = p; // ✅ 编译通过
+
+interface Point3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
+// 形状缺了 z，这才报错——报的也是"缺属性"，不是"类型不同名"
+const q: Point3D = p;
+// ❌ TS2741: Property 'z' is missing in type 'Point' but required in type 'Point3D'.
+```
+
+再看一个 Java 直觉彻底失效的方向：**多出来的属性也不碍事**（通过变量中转时）。
+
+```ts
+const p3: Point3D = { x: 1, y: 2, z: 3 };
+const p2: Point = p3; // ✅ 三维点当二维点用，形状"包含"即兼容
+
+// 但直接用"对象字面量"赋值时，TS 会额外做一次"多余属性检查"：
+const p4: Point = { x: 1, y: 2, z: 3 };
+// ❌ TS2353: Object literal may only specify known properties, and 'z' does not exist in type 'Point'.
+```
+
+**为什么 TS 这么设计？** 因为 JS 生态里大量对象是字面量、是 JSON、是别的库吐出来的——它们不可能人人来 `implements` 你的接口。结构化类型让类型系统能"事后描述"既有数据，这正是"描述型语言"的立身之本。给我的心智替换：在 TS 里，interface 不是"待认领的契约"，而是"一张通缉画像"——长得像，就算数。
+
+### 2.2 类型推断：标注是例外，不是常规
+
+**Java 翻译**：Java 10 之后有 `var`，但社区用得节制，多数代码仍然显式写类型。Java 的默认习惯是"类型写出来"。
+
+**翻译失真点**：TS 反过来——**推断是常规，标注是例外**。编译器能推出来的，写了反而是噪音。TS 老手的代码里，类型标注集中出现在三个地方：函数参数、公共 API 的返回值、以及推断结果不符合意图时的纠偏。其余位置一律交给推断。
+
+```ts
+// let：推断为"宽类型"，因为变量还可能被重新赋值
+let city = "Shanghai"; // 推断为 string
+
+// const：推断为"字面量类型"——它永远不会变，类型就精确到值本身
+const lang = "zh"; // 推断为 "zh"，不是 string！
+
+city = "Beijing"; // ✅ string 随便换
+let mode = lang; // mode 被推断为 string（let 触发"字面量拓宽"）
+
+// 函数返回值：不写返回类型，编译器照样推得明明白白
+function splitWords(input: string) {
+  return input.split(" "); // 返回类型被推断为 string[]
+}
+
+const words = splitWords("hello world"); // words: string[]
+
+// 推断不了的地方才必须写——参数没有上下文，推不出来
+function greet(name) {
+  return `Hello, ${name}`;
+}
+// ❌ TS7006: Parameter 'name' implicitly has an 'any' type.
+```
+
+`let` 与 `const` 的推断差异值得多咂摸一下：`const lang = "zh"` 的类型是字符串字面量 `"zh"`，这在 Java 里没有对应物——Java 的 `final String` 类型还是 `String`，值的信息不进类型。而 TS 把"值"提升进了类型系统，后面 2.3 的联合类型会看到这个设计的威力：`"zh" | "en"` 这种"只能取这几个值"的类型，就是字面量类型攒出来的，作用相当于 Java 的 enum，却轻得多。
+
+给我的写码纪律：**参数必标，导出函数的返回值建议标（当文档用），局部变量一律不标**。看到满屏 `const list: string[] = []` 之外还给每个中间变量标类型的代码，那是 Java 口音，要改。
+
+### 2.3 联合类型与收窄：把 Optional 织进语言
+
+**Java 翻译**：勉强能对齐的是 `Optional` 加上 sealed interface 的模式匹配。但说实话——**Java 没有真正的对应物**，这是 TS 相对 Java 最"多出来"的一块能力。
+
+**翻译失真点**：Java 的 `Optional<String>` 是一个包装盒，你得 `.map()`、`.orElse()` 地跟盒子打交道；TS 的 `string | null` 不是盒子，就是"这个值要么是 string 要么是 null"的裸声明，而**编译器会盯着你在每条代码路径上都把可能性排除干净**。排除的动作叫"收窄"（narrowing）——用最普通的 if 语句就能完成，编译器全程跟着你的控制流走。
+
+```ts
+function findTitle(id: string): string | null {
+  return id === "p-2026-001" ? "开窍笔记" : null;
+}
+
+const title = findTitle("x");
+
+title.length;
+// ❌ TS18047: 'title' is possibly 'null'.
+
+if (title !== null) {
+  title.length; // ✅ 这个分支里 title 被收窄为 string
+}
+```
+
+编译器"跟着控制流走"这件事，Java 人第一次见会觉得像魔法——同一个变量，在 if 内外是**两个不同的类型**。再看 `typeof` 和 `in` 两种收窄手段：
+
+```ts
+function formatId(id: string | number) {
+  id.toUpperCase();
+  // ❌ TS2339: Property 'toUpperCase' does not exist on type 'string | number'.
+  //   Property 'toUpperCase' does not exist on type 'number'.
+
+  if (typeof id === "string") {
+    return id.toUpperCase(); // ✅ 收窄为 string
+  }
+  return id.toFixed(0); // ✅ 排除 string 后，这里自动收窄为 number
+}
+
+interface Draft {
+  body: string;
+}
+interface Published {
+  body: string;
+  publishedAt: string;
+}
+
+function describe(a: Draft | Published) {
+  // "in" 收窄：按"有没有这个属性"分流——结构化类型世界的模式匹配
+  if ("publishedAt" in a) {
+    return `发布于 ${a.publishedAt}`; // ✅ 收窄为 Published
+  }
+  return "草稿"; // ✅ 收窄为 Draft
+}
+```
+
+注意第一个报错的第二行：TS 的报错经常带"追问链"——先说联合类型上没有这个属性，再点名是 `number` 这个成员拖了后腿。读 TS 报错要养成读到最后一行的习惯，最后一行往往才是病根。
+
+这套机制配上 `strictNullChecks`（本站 tsconfig 已开启 strict），等于把 Java 世界里靠 `@Nullable` 注解、靠 IDE 提示、靠祈祷来防的 NPE，直接焊死在了编译期：**任何可能为 null 的值，不收窄就不让碰**。我认为这是 Java 人学 TS 最先能拿到的红利——上手第一天就能少写一类 bug。
+
+### 2.4 类型擦除：运行时零类型，边界处 Zod 补位
+
+**Java 翻译**：Java 人对"擦除"不陌生——泛型擦除嘛，`List<String>` 运行时变成 `List`。但注意，Java 只擦泛型参数，`List` 本身、`String` 本身在运行时都还在，`instanceof`、反射、`getClass()` 都好使。
+
+**翻译失真点**：TS 的擦除**彻底得多**——不是擦掉泛型参数，是把**整个类型层连根拔掉**。interface、type、类型标注、泛型，编译成 JS 后一个都不剩。运行时的世界里没有 `Point`，没有 `Article`，只有光秃秃的对象。
+
+```ts
+interface User {
+  name: string;
+}
+
+function isUser(value: object) {
+  // Java 直觉：instanceof 判断一下不就行了？
+  return value instanceof User;
+  // ❌ TS2693: 'User' only refers to a type, but is being used as a value here.
+}
+```
+
+这个报错值得裱起来：`User` "只是一个类型，不是一个值"。它在运行时**不存在**，自然没法 `instanceof`。Java 里类型和类是一体的，TS 里类型和值是**两个平行世界**——类型世界只活在编译期。
+
+那么问题来了：既然运行时没有类型，那从外部进来的数据（HTTP 响应、配置文件、用户输入）怎么保证形状可信？编译器只能保证"我写的代码内部"类型自洽，它管不到 `fetch` 回来的 JSON 长什么样。答案是：**在系统边界上，用运行时校验库把类型"补"回来**。这个生态位上最流行的是 Zod——用 JS 代码描述 schema，运行时真刀真枪地校验，顺便把 TS 类型推导出来，一份定义两头用。
+
+不用架空例子，**这个博客自己就在这么干**。本站所有文章的 frontmatter 从 MDX 文件里解析出来时是 `unknown`（磁盘上的东西，谁知道写没写对），入库前必须过一道 Zod。以下节选自本站真实代码 `src/content-io/validate.ts`：
+
+```ts
+export const baseContentSchema = z.object({
+  slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+    message: "slug 必须为小写字母/数字 + 连字符",
+  }),
+  title: z.string().min(1, { message: "title 不能为空" }),
+  summary: z
+    .string()
+    .min(1, { message: "summary 必填（列表页与 SEO 的最低保障）" })
+    .max(160, { message: "summary 不能超过 160 字" }),
+  status: contentStatusSchema,
+  // ……（节选）
+});
+```
+
+写错一个字段，构建直接失败并报出文件路径——这就是"边界处补类型"的工程形态。用 Java 的话翻译：Zod 之于 TS，约等于 Bean Validation（`@NotNull`、`@Size`）之于 Spring，但地位重得多——因为 TS 运行时是"裸奔"的，边界校验不是锦上添花，是唯一防线。
+
+心智总结：**编译期靠类型，运行期靠 schema，两者在系统边界上交接**。所有"从外面来的数据"，先当 `unknown`，过完校验再进类型世界。
+
+### 2.5 interface vs type 与泛型：大体可平移的一块
+
+**Java 翻译**：这是六个概念里 Java 直觉失真最小的一块。`interface` 大体对应 Java 的 interface（可 extends、可被类 implements、可声明合并）；`type` 是类型别名，Java 没有直接对应物（最接近的是"给复杂泛型起个短名"的那种愿望）。泛型语法长得也像：`Box<T>`、`T extends Xxx`，一眼熟。
+
+**翻译失真点**有两个。其一：interface 和 type 在多数场景下**可以互换**，社区惯例是"对象形状用 interface，联合/工具类型用 type"，不必纠结。其二（重要）：TS 的泛型**只活在类型层**，没有 Java 那种运行时的一丝残留，也没有通配符 `? extends` 那套复杂度；约束用 `extends`，语义是"形状至少长这样"（又回到了结构化类型）。
+
+```ts
+// type 能表达 interface 表达不了的东西：联合、字面量组合
+type Visibility = "public" | "private";
+type Result = { ok: true; data: string } | { ok: false; error: string };
+
+// 泛型函数 + extends 约束："T 至少得有 length 属性"
+function longest<T extends { length: number }>(a: T, b: T): T {
+  return a.length >= b.length ? a : b;
+}
+
+longest("alice", "bob"); // ✅ T 推断为 string（string 有 length）
+longest([1, 2, 3], [4, 5]); // ✅ T 推断为 number[]
+
+longest(10, 20);
+// ❌ TS2345: Argument of type 'number' is not assignable to parameter of type '{ length: number; }'.
+```
+
+注意最后那个报错：约束检查报的不是"number 没有实现某接口"，而是"number 赋不到 `{ length: number }` 这个**形状**上"——泛型约束也是结构化的，整个类型系统一以贯之。
+
+另一个让 Java 人舒服的点：泛型推断在 TS 里极其能干。调用 `longest("alice", "bob")` 时不需要写 `longest<string>(...)`，编译器从实参反推。Java 的钻石操作符只是省略右边，TS 是连尖括号整个都不用出现。
+
+### 2.6 any vs unknown：逃生舱与安全气囊
+
+**Java 翻译**：`any` 约等于把变量声明成 `Object` 然后**到处隐式强转还不检查**——Java 里根本写不出这么危险的东西；`unknown` 才是真正的 `Object`：什么都能装进去，但取出来用之前必须显式确认类型。
+
+**翻译失真点**：`any` 的可怕之处在于它是**传染的**——一个 `any` 值参与的所有运算结果都是 `any`，类型检查在它流经的每一处静默关闭。它是逃生舱，也是毒品：偶尔救急可以，写顺手了整个类型系统形同虚设。Java 人该用的是 `unknown`。
+
+```ts
+const dataA: any = JSON.parse('{"count": 1}');
+const dataU: unknown = JSON.parse('{"count": 1}');
+
+// any：编译器彻底闭嘴，胡写都放行——雷埋到运行时炸
+dataA.count.toFixed(2); // ✅ 编译通过
+dataA.cuont.toFixed(2); // ✅ 手滑拼错也编译通过！运行时 TypeError
+
+// unknown：不确认类型，什么都不让做
+dataU.count;
+// ❌ TS18046: 'dataU' is of type 'unknown'.
+
+// 正路：收窄之后再用（真实项目里这一步交给 Zod，见 2.4）
+if (
+  typeof dataU === "object" &&
+  dataU !== null &&
+  "count" in dataU &&
+  typeof dataU.count === "number"
+) {
+  dataU.count.toFixed(2); // ✅ 一路收窄到 number
+}
+```
+
+对照着看：`any` 连 `cuont` 这种拼写错误都放行，`unknown` 则严到一根手指头都不让碰。手写那一长串收窄确实烦——所以真实工程里，边界上的 `unknown` 都交给 Zod 的 parse 一步到位（2.4 节的 `baseContentSchema` 就是干这个的）：`unknown` 进去，带完整类型的对象出来。
+
+给我的纪律：**代码里出现 `any` 一律当坏味道审视**；接外部数据一律 `unknown` + schema 校验。这不是洁癖，是给未来的自己留活路。
+
+---
+
+TS 六个概念收尾，用一句话串起来：**结构化类型让 TS 能描述一切既有数据（2.1），推断让描述的成本降到最低（2.2），联合与收窄让描述能表达"可能性"（2.3），擦除决定了描述只活在编译期、边界要靠 schema 补位（2.4），泛型让描述可以参数化（2.5），unknown 是描述缺失时的安全默认值（2.6）**。TS 从头到尾都在干同一件事：给运行时那个不羁的 JS 世界，画一张尽量精确的静态地图。
+
+## 三 React：一个公式与它的推论
+
+如果说 TS 部分是"六个概念"，React 部分其实只有**一个公式**，剩下五个都是这个公式的推论：
+
+**UI = f(state)** —— 界面是状态的函数。
+
+Java 人做过 Swing、或者哪怕只是想象过 GUI 编程，脑子里的模型都是"命令式改界面"：`label.setText(...)`、`button.setEnabled(false)`——界面是一棵巨大的可变对象树，代码的职责是**逐个改它**。React 把这个模型整个掀翻了。
+
+### 3.1 UI = f(state)：界面是算出来的，不是改出来的
+
+React 的主张：你**永远不直接改界面**。你只维护一份状态（state），然后写一个函数描述"给定这份状态，界面应该长什么样"。状态变了，React 重新调一遍你的函数，算出新界面，替你把屏幕更新到位。
+
+用后端的话翻译：**界面就是状态的一个"视图"，和 SQL 视图之于表是同一种关系**。你不会手改视图里的某一行，你改表，视图自动反映。React 组件就是那条视图定义 SQL。
+
+```tsx
+import { useState } from "react";
+
+type Status = "idle" | "loading" | "success";
+
+const STATUS_VIEW: Record<Status, string> = {
+  idle: "等待任务",
+  loading: "处理中……",
+  success: "已完成",
+};
+
+function StatusPanel() {
+  const [status, setStatus] = useState<Status>("idle");
+
+  // 注意：下面没有任何一行代码在"修改界面"。
+  // 整个 return 是在"描述"当前 status 对应的界面长什么样。
+  return (
+    <div>
+      <p>当前状态：{STATUS_VIEW[status]}</p>
+      <button onClick={() => setStatus("idle")}>重置</button>
+      <button onClick={() => setStatus("loading")}>开始</button>
+      <button onClick={() => setStatus("success")}>完成</button>
+    </div>
+  );
+}
+```
+
+点按钮时发生的事：`setStatus` 更新状态 → React 重新调用 `StatusPanel` → 函数返回一份新的界面描述 → React 对比新旧描述，把差异刷上屏幕。全程没有一行 `label.setText`。
+
+![概念1效果图：状态面板初始为等待任务状态](/images/private/p-2026-001/demo-1-初始.png)
+
+![概念1效果图：点击开始后状态文字变为处理中](/images/private/p-2026-001/demo-1-交互后.png)
+
+{/* LIVEDEMO-SLOT: demo-1 UI=f(state) 总公式 —— 第二轮由 LiveDemo 组件替换 */}
+
+### 3.2 组件 = 纯函数，JSX = 函数调用语法糖
+
+**推论一**：既然 UI 是 f(state)，那组件就该是**纯函数**——同样的输入（props 与 state）永远算出同样的界面描述，渲染过程不产生副作用。这跟写一个纯的工具方法没有区别，Java 人对"纯函数"的所有直觉（可测试、可组合、无惊喜）在这里全部适用。
+
+**JSX 不是模板语言，是函数调用的语法糖**。`<Greeting name="Alice" />` 这种"HTML 长在 JS 里"的写法，编译后就是一个普普通通的函数调用（大致是 `jsx(Greeting, { name: "Alice" })`）。理解了这一点，JSX 的一切"怪规矩"都有了解释：
+
+```tsx
+interface GreetingProps {
+  name: string;
+  order: number;
+}
+
+// 组件就是个函数：入参是 props 对象，返回值是界面描述
+function Greeting({ name, order }: GreetingProps) {
+  return (
+    <p>
+      你好，{name}，你是第 {order} 位访客。
+    </p>
+  );
+}
+
+function GreetingList() {
+  const names = ["Alice", "Bob", "Carol"];
+  return (
+    <ul>
+      {/* 花括号里是货真价实的 JS 表达式——因为 JSX 本来就是 JS */}
+      {names.map((n, i) => (
+        <li key={n}>
+          <Greeting name={n} order={i + 1} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+为什么列表渲染用 `.map()` 而不是某种 for 指令？因为 JSX 就是 JS 表达式，数组变换当然用数组方法。为什么组件名必须大写开头？因为编译器靠首字母区分"调用你的函数"还是"生成原生标签"。为什么属性写 `className` 不写 `class`？因为这是 JS 的世界，`class` 是保留字。——所有规矩都指向同一个事实：**你一直在写 JS，从来没写过 HTML**。
+
+![概念2效果图：列表渲染出 Alice、Bob、Carol 三位访客的问候语](/images/private/p-2026-001/demo-2-初始.png)
+
+{/* LIVEDEMO-SLOT: demo-2 组件=纯函数、JSX=语法糖 —— 第二轮由 LiveDemo 组件替换 */}
+
+### 3.3 重新渲染心智模型：函数重跑，而且不慢
+
+**推论二**，也是 Java 人最大的恐慌点：状态一变，**整个组件函数从头再跑一遍**。
+
+第一反应一定是："什么？一个 setCount，整个函数体重新执行？局部变量全部重新声明？这性能能行吗？"——这个恐慌值得认真拆解，因为它混淆了两件事：
+
+1. **重跑你的函数**：很便宜。组件函数只是算出一份轻量的"界面描述"（一棵普通 JS 对象树，即所谓虚拟 DOM），创建一堆小对象而已，JS 引擎干这个飞快。
+2. **更新真实屏幕**：很贵。真实 DOM 操作牵动浏览器的布局与绘制，才是性能大头。
+
+React 的策略：让便宜的事随便发生（函数随便重跑），让贵的事最少发生——拿新算出的描述和上一次的做 **diff**，只把真正变化的部分提交到真实 DOM。函数重跑一百次，若界面描述没变，真实 DOM 一个指头都不会被动。
+
+```tsx
+import { useState } from "react";
+
+function RenderCounter() {
+  const [count, setCount] = useState(0);
+
+  // 每次点击：整个函数体重新执行，这行 log 会再打一遍（开控制台看）
+  console.log("RenderCounter 函数执行了一次");
+
+  // 本例里每次渲染都恰好由一次点击触发：
+  // 初始渲染 1 次 + 点击 count 次，渲染次数可以直接推导出来
+  const renders = count + 1;
+
+  return (
+    <div>
+      <h4>这行标题从未变化，DOM 节点从不被触碰</h4>
+      <p>count = {count}</p>
+      <p>组件函数已执行 {renders} 次</p>
+      <button onClick={() => setCount(count + 1)}>+1</button>
+    </div>
+  );
+}
+```
+
+（旁注：网上常见用 `useRef` 在渲染期里累加来数渲染次数的写法，但 React 官方文档明确说 **渲染期间不要读写 `ref.current`**，本站 lint 也会拦住这种写法——所以这里用派生值演示。）
+
+用 Java 给这个模型找个锚点：像不像**无状态服务**？每个请求（状态变更）进来，处理函数从头执行，不依赖上次执行留下的局部变量——所有需要跨请求存活的东西都放在外部存储（React 里就是 `useState`/`useRef` 这些 Hook 托管的槽位）。Java 人写惯了无状态服务，本该秒懂这个模型，恐慌纯粹来自"函数重跑"四个字的第一印象。
+
+![概念3效果图：渲染计数器初始状态 count 为 0](/images/private/p-2026-001/demo-3-初始.png)
+
+![概念3效果图：点击数次后 count 与函数执行次数同步增长](/images/private/p-2026-001/demo-3-交互后.png)
+
+{/* LIVEDEMO-SLOT: demo-3 重新渲染心智模型 —— 第二轮由 LiveDemo 组件替换 */}
+
+### 3.4 useState 与不可变性：为什么不能直接改变量
+
+**推论三**：状态必须走 `useState` 托管，而且更新时**只能换新的，不能改旧的**。
+
+先看第一半：为什么不能 `let count = 0; count++`？因为组件函数每次渲染都重跑（3.3），局部变量每次都被重新初始化——`count++` 改的那个变量，下一次渲染就没了。`useState` 的本质是把状态**寄存到组件函数外面**（React 内部的槽位里），函数重跑时再取回来。这就是 3.3 说的"无状态服务 + 外部存储"模式的具体形态。
+
+再看第二半：为什么更新对象/数组时必须造新的？因为 React 判断"状态变没变"用的是**引用比较**（约等于 Java 的 `==` 而非 `equals`）。你原地 `list.push(x)`，引用没变，React 认为什么都没发生，界面不刷新——这是新手最经典的"我明明改了状态为什么界面不动"事故。
+
+Java 人有个现成的类比：**`String`**。你从来不"修改"一个 String，`s.toUpperCase()` 返回的是新字符串。React 要求你把**所有**状态都当 String 对待——更新就是"基于旧值造新值"。
+
+```tsx
+import { useState } from "react";
+
+function TagEditor() {
+  const [tags, setTags] = useState<string[]>(["java"]);
+  const [draft, setDraft] = useState("");
+
+  function addTag() {
+    if (draft === "") return;
+    // ❌ 错误示范：tags.push(draft) —— 原地修改，引用不变，界面不动
+    // ✅ 正确姿势：展开旧数组造一个新数组（类比 String 拼接返回新串）
+    setTags([...tags, draft]);
+    setDraft("");
+  }
+
+  return (
+    <div>
+      <ul>
+        {tags.map((t) => (
+          <li key={t}>#{t}</li>
+        ))}
+      </ul>
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="输入新标签"
+      />
+      <button onClick={addTag}>添加</button>
+    </div>
+  );
+}
+```
+
+顺带认识两个新朋友：`[...tags, draft]` 是展开语法（把旧数组的元素铺进新数组字面量，等价于 Java Stream 的 concat 再 collect）；`(e) => setDraft(e.target.value)` 这种受控输入模式 3.6 还会再见到。
+
+![概念4效果图：标签编辑器初始只有 java 一个标签](/images/private/p-2026-001/demo-4-初始.png)
+
+![概念4效果图：添加新标签后列表显示 #java 与 #python 两个标签](/images/private/p-2026-001/demo-4-交互后.png)
+
+{/* LIVEDEMO-SLOT: demo-4 useState 与不可变性 —— 第二轮由 LiveDemo 组件替换 */}
+
+### 3.5 useEffect：副作用隔离舱
+
+**推论四**：既然组件是纯函数（3.2），那些"不纯"的事——定时器、订阅、请求、操作浏览器 API——放哪儿？答案是 `useEffect`：React 给副作用划出的隔离舱。渲染归渲染（纯），副作用归副作用（在渲染完成后由 React 择机执行），两不相扰。
+
+`useEffect` 是公认的新手最大坑，坑就坑在两个参数上：
+
+1. **依赖数组**（第二个参数）：告诉 React"这段副作用依赖哪些值，它们变了才需要重新执行"。空数组 `[]` 表示只在组件挂载时跑一次。漏写依赖 → 副作用里用到过期的旧值；乱写依赖 → 副作用疯狂重跑甚至死循环。
+2. **清理函数**（effect 的返回值）：副作用的"finally"。组件卸载或依赖变化导致 effect 重跑之前，React 先调它。定时器不清理就泄漏，订阅不退订就重复——Java 人想想没有 try-with-resources 的年代满地的连接泄漏，是同一类事故。
+
+```tsx
+import { useEffect, useState } from "react";
+
+function Stopwatch() {
+  const [seconds, setSeconds] = useState(0);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    // running 为 false 时不设定时器——effect 也可以什么都不做
+    if (!running) return;
+
+    const timer = setInterval(() => {
+      // 函数式更新：基于最新值 +1，避免闭包捕获过期的 seconds
+      setSeconds((s) => s + 1);
+    }, 1000);
+
+    // 清理函数：running 变化或组件卸载时，React 保证先执行这里
+    return () => clearInterval(timer);
+  }, [running]); // 依赖数组：只有 running 变化才重建定时器
+
+  return (
+    <div>
+      <p>已计时 {seconds} 秒</p>
+      <button onClick={() => setRunning(!running)}>
+        {running ? "暂停" : "开始"}
+      </button>
+      <button onClick={() => setSeconds(0)}>清零</button>
+    </div>
+  );
+}
+```
+
+这段 20 行的代码浓缩了 effect 的全部要点：条件副作用、清理函数、依赖数组、函数式更新。值得反复盘。我的记忆口诀：**effect 是"开机自启服务"，依赖数组是它的重启触发器，清理函数是它的 shutdown hook——而且这个 shutdown hook 是 React 保证执行的，比 JVM 的还靠谱**。
+
+![概念5效果图：秒表初始为 0 秒未运行](/images/private/p-2026-001/demo-5-初始.png)
+
+![概念5效果图：点击开始后秒表持续计时，按钮变为暂停](/images/private/p-2026-001/demo-5-交互后.png)
+
+{/* LIVEDEMO-SLOT: demo-5 useEffect 副作用隔离舱 —— 第二轮由 LiveDemo 组件替换 */}
+
+### 3.6 props 单向流动：只下传，不回写
+
+**推论五**：数据在组件树里**只往下流**。父组件通过 props 把数据传给子组件，子组件**只读**，永远不改 props。子组件想"影响"父组件？父组件把一个回调函数当 props 传下去，子组件调用它"上报事件"，改不改状态、怎么改，决定权始终在父组件手里。
+
+Java 类比：props 就是**构造器注入**——依赖从外面注入进来，组件内部把它当 final 字段用；回调 props 则像注入了一个 listener 接口。整个模式合起来，很像"依赖注入 + 事件监听"的组合，只是这里的"Bean"每次渲染都会重建（3.3）。
+
+```tsx
+import { useState } from "react";
+
+interface VoteButtonProps {
+  label: string;
+  count: number; // 只读：子组件永远不直接改它
+  onVote: () => void; // 上行通道：想改？调这个回调"申请"
+}
+
+// 子组件：纯展示 + 事件上报，自己一个状态都不持有
+function VoteButton({ label, count, onVote }: VoteButtonProps) {
+  return (
+    <button onClick={onVote}>
+      {label}（{count}）
+    </button>
+  );
+}
+
+// 父组件：状态的唯一持有者，改状态的逻辑全部收在这里
+function Poll() {
+  const [ts, setTs] = useState(0);
+  const [react, setReact] = useState(0);
+
+  return (
+    <div>
+      <p>哪部分对你冲击更大？</p>
+      <VoteButton label="TypeScript" count={ts} onVote={() => setTs(ts + 1)} />
+      <VoteButton label="React" count={react} onVote={() => setReact(react + 1)} />
+      <p>共 {ts + react} 票</p>
+    </div>
+  );
+}
+```
+
+单向流动的回报是**可追踪性**：任何界面异常，只需要顺着 props 链往上找到状态的持有者，改动点唯一。对比一下双向绑定或全局可变状态的排查体验——这跟后端"谁持有写权限"的架构讨论是同一个问题，React 直接在框架层面给了最保守的答案：写权限永远在状态声明处。
+
+![概念6效果图：投票组件初始两项均为 0 票](/images/private/p-2026-001/demo-6-初始.png)
+
+![概念6效果图：点击投票后计数上升且总票数同步](/images/private/p-2026-001/demo-6-交互后.png)
+
+{/* LIVEDEMO-SLOT: demo-6 props 单向流动 —— 第二轮由 LiveDemo 组件替换 */}
+
+## 四 两者咬合：props 即接口契约
+
+TS 和 React 各自讲完，最后看它们咬合的齿轮在哪里。答案已经在 3.6 的代码里出现过了：**`interface XxxProps` 就是组件的 API 契约**。
+
+后端定义一个 REST 接口，会用 DTO + Bean Validation 把入参钉死；前端定义一个组件，用一个 Props interface 把"调用方必须传什么、可以传什么"钉死。`VoteButtonProps` 之于 `VoteButton`，就是 `CreateOrderRequest` 之于 `POST /orders`。漏传必填 prop、传错类型，编译器当场报错（TS2741/TS2322，就是 2.1 见过的那些）——组件的误用被拦在编译期，这是 TS 和 React 咬合得最漂亮的地方。
+
+照例不用架空例子。本站文章列表卡组件的真实契约，节选自 `src/domains/articles/components/ArticleCard.tsx`：
+
+```ts
+export interface ArticleCardProps {
+  article: Article;
+  /** featured：首页大卡——更大标题/显示 cover/摘要行数放宽/meta 完整（默认 default 零破坏） */
+  size?: "default" | "featured";
+}
+```
+
+短短几行，把前面学的东西全串上了：`article: Article` 是领域对象直传（Article 类型又是从 Zod schema 链路里长出来的，见 2.4）；`size?` 的 `?` 表示可选（联合上了 `undefined`，2.3 的知识）；`"default" | "featured"` 是字面量联合类型（2.2 的字面量类型攒的），把合法取值焊死在契约里——传 `size="big"` 直接编译失败，而 Java 的同类场景多半要等到运行时才发现字符串写错了。
+
+**读组件先读 Props interface**，就像读服务先读接口定义——这是我给自己定的第一条读码习惯。一个站的全部组件契约摸完，这个站的"前端 API 面"就清楚了。
+
+## 五 学习路线图
+
+路线图分四个阶段，每个节点都锚定在本博客上练手——不做 todo list 玩具项目，验收标准全部是"对这个真实站点做成某件事"。
+
+| 阶段 | 节点 | 学到什么程度够用 | 验收标准（全部锚定本站） |
+| --- | --- | --- | --- |
+| 一 地基 | TS 类型系统 | 本文六概念能脱稿复述；读得懂报错 | 独立看懂 `src/domains/articles/schema.ts` 每一行，说清每个字段的校验规则 |
+| 一 地基 | Zod 边界校验 | 会读 schema、会跑校验 | 故意写坏一个 frontmatter，预测 `pnpm validate-content` 的报错并验证 |
+| 二 组件 | JSX 与组件拆分 | 能读懂中等复杂度组件 | 看懂 `ArticleCard.tsx` 全文，画出它的 props 数据流 |
+| 二 组件 | state/effect 实战 | 六个 Demo 能默写 | 给本站某个现有组件做一次小改造（如给卡片加一个交互状态）并通过 lint |
+| 三 数据与路由 | 内容管线 | 理解"文件 → 校验 → 领域 → 页面"链路 | 讲清一篇 MDX 从 `content/articles/` 到 `/writing/:slug` 渲染成页面的完整路径 |
+| 三 数据与路由 | React Router | 会加路由、会读 loader 数据流 | 独立给本站加一个临时页面并挂上路由（本文的截图页就是第一次练习） |
+| 四 全栈整合 | 完整功能上线 | 需求 → schema → 组件 → 路由 → 构建部署全流程独立完成 | **总验收：独立给本博客做一个完整功能并上线**（候选：文章目录 TOC 组件 / 标签筛选页） |
+
+说明两点：一，"够用"的标准刻意定得保守——每个节点不求精通，求"能在本站代码里行动"；精通是行动的副产品，不是前置条件。二，**此表将来会由可视化学习地图组件替换**（那个组件本身就是第四阶段的候选功能之一，用自己的学习工具验收自己的学习，闭环）。
+
+## 六 坑与顿悟记录
+
+这一节是活文档里最活的部分。每次被坑或者开窍，回来追加一条，格式固定：
+
+> **我以为 X（Java 直觉），实际是 Y，因为 Z。**
+
+三段缺一不可：X 记录旧地图错在哪，Y 记录新地图长什么样，Z 记录为什么——没有 Z 的记录是笔记，有 Z 的记录才是开窍。
+
+**第 1 条（2026-07-31，写作本文时）**：我以为两个同名同形的 interface 分属两个文件会像 Java 一样是两个不兼容的类型（Java 直觉：类型身份由全限定名决定），实际是它们在 TS 里完全可以互相赋值，因为 TS 的类型兼容只比较结构、不比较声明身份——类型在 TS 里是"对形状的描述"，而描述相同的两段文字当然等价。
+
+（未来的我：从这里往下写。）

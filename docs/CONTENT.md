@@ -132,7 +132,8 @@
 - `status` 必须为 `published`（私密与草稿语义不得混用）；
 - `slug` 必须为中性编号 `p-年份-序号`（如 `p-2026-001`，正则 `^p-\d{4}-\d{3}$`）；
 - `title` 固定为“私密文章”，`summary` 置空或固定为“该文章仅作者可见。”；**真实标题写在 MDX 正文首个 H1**（随正文受保护）；
-- 不得设置 `cover` / `seo` / `related`（避免元数据与关联链路泄露）。
+- 不得设置 `cover` / `seo` / `related`（避免元数据与关联链路泄露）；
+- 插图必须存放于 `public/images/private/{slug}/` 下，并以 `/images/private/{slug}/xxx.png` 引用（该路径受 nginx 口令门保护）；禁止放在公开 images 目录。
 
 反向约束：公开文章 slug 不得以“p-数字”形态开头（会误撞 nginx 保护路径 `/writing/p-`）。
 
