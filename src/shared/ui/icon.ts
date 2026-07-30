@@ -24,6 +24,7 @@ export {
   Hammer,
   Inbox,
   Info,
+  Lock,
   Mail,
   Menu,
   Minus,

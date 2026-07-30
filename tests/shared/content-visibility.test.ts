@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   byDateDesc,
   filterVisible,
+  isPubliclyListable,
   isVisible,
 } from "@/shared/utils/content";
 
@@ -35,5 +36,22 @@ describe("content visibility (draft 过滤核心逻辑)", () => {
       "2026-06",
       "2026-05",
     ]);
+  });
+
+  it("isPubliclyListable 与 status 正交：只看 visibility", () => {
+    // 缺省/显式 public 可列出；private 不可列出
+    expect(isPubliclyListable({})).toBe(true);
+    expect(isPubliclyListable({ visibility: "public" })).toBe(true);
+    expect(isPubliclyListable({ visibility: "private" })).toBe(false);
+    // 与 status 无关：published+private 仍不可列出，draft+public 仍可列出
+    const privatePublished = {
+      status: "published" as const,
+      visibility: "private" as const,
+    };
+    const publicDraft = { status: "draft" as const, visibility: undefined };
+    expect(isVisible(privatePublished.status, false)).toBe(true);
+    expect(isPubliclyListable(privatePublished)).toBe(false);
+    expect(isVisible(publicDraft.status, false)).toBe(false);
+    expect(isPubliclyListable(publicDraft)).toBe(true);
   });
 });

@@ -13,6 +13,7 @@ import { getSiteSettings, getSpotlight, sanitizeRelated } from "@/domains/site";
 import { FadeIn, Stagger } from "@/shared/motion";
 import { buildMeta, websiteJsonLd } from "@/shared/seo";
 import { ArrowRight } from "@/shared/ui";
+import { isPubliclyListable } from "@/shared/utils/content";
 
 import type { Project } from "@/domains/projects";
 
@@ -67,7 +68,7 @@ export async function loader() {
     profile,
     featuredProject,
     selectedAgents,
-    latestArticles: articles.slice(0, 3),
+    latestArticles: articles.filter(isPubliclyListable).slice(0, 3),
     latestNow,
   };
 }

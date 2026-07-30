@@ -33,6 +33,7 @@ export interface FeedEntry {
 interface MdxMeta {
   slug: string;
   status: string;
+  visibility: string;
   title: string;
   summary: string;
   createdAt: string;
@@ -80,6 +81,7 @@ function readMdxMeta(filePath: string): MdxMeta {
   return {
     slug: String(data.slug ?? ""),
     status: String(data.status ?? ""),
+    visibility: String(data.visibility ?? "public"),
     title: String(data.title ?? ""),
     summary: String(data.summary ?? ""),
     createdAt: toIsoDate(data.createdAt) ?? "",
@@ -139,12 +141,13 @@ export const STATIC_PATHS = [
   "/about",
 ];
 
-/** 不进 sitemap 的 prerender 路径（/workspace 为私有页，只出轻量壳） */
-export const INTERNAL_PATHS = ["/dev/ui", "/404", "/workspace"];
+/** 不进 sitemap 的 prerender 路径（/workspace 为私有页，只出轻量壳；/private-notice 为私密提示页，ADR-010） */
+export const INTERNAL_PATHS = ["/dev/ui", "/404", "/workspace", "/private-notice"];
 
-/** published 文章（RSS + 详情路径），createdAt 倒序 */
+/** published 且公开文章（RSS + 公开详情路径），createdAt 倒序；私密文章（ADR-010）完全排除 */
 export function getPublishedArticles(): FeedEntry[] {
   return publishedMdxMetas(articleMdxFiles(join(ROOT, "content/articles")))
+    .filter((meta) => meta.visibility !== "private")
     .map(({ slug, title, summary, createdAt, updatedAt }) => ({
       slug,
       title,
@@ -155,8 +158,15 @@ export function getPublishedArticles(): FeedEntry[] {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/** 全部动态详情路径（published only）：article/lab（MDX）+ project/agent（TS 数据） */
-export function getDetailPaths(): string[] {
+/** 私密文章详情路径（published + visibility=private）：要 prerender，但不进 sitemap/RSS */
+export function getPrivateArticleDetailPaths(): string[] {
+  return publishedMdxMetas(articleMdxFiles(join(ROOT, "content/articles")))
+    .filter((meta) => meta.visibility === "private")
+    .map((meta) => `/writing/${meta.slug}`);
+}
+
+/** 公开动态详情路径（published only，排除私密）：article/lab（MDX）+ project/agent（TS 数据） */
+export function getPublicDetailPaths(): string[] {
   const articlePaths = getPublishedArticles().map(
     (article) => `/writing/${article.slug}`,
   );
@@ -172,12 +182,22 @@ export function getDetailPaths(): string[] {
   return [...articlePaths, ...labPaths, ...projectPaths, ...agentPaths];
 }
 
-/** prerender 全量路径：静态 + 内部 + 动态详情 */
-export function getPrerenderPaths(): string[] {
-  return [...STATIC_PATHS, ...INTERNAL_PATHS, ...getDetailPaths()];
+/** 兼容旧导出：语义同 getPublicDetailPaths（私密详情页另经 getPrivateArticleDetailPaths） */
+export function getDetailPaths(): string[] {
+  return getPublicDetailPaths();
 }
 
-/** sitemap 收录路径：排除 /dev/ui 与 404（任务约定） */
+/** prerender 全量路径：静态 + 内部 + 公开详情 + 私密详情（受 nginx 拦截保护） */
+export function getPrerenderPaths(): string[] {
+  return [
+    ...STATIC_PATHS,
+    ...INTERNAL_PATHS,
+    ...getPublicDetailPaths(),
+    ...getPrivateArticleDetailPaths(),
+  ];
+}
+
+/** sitemap 收录路径：只含公开（排除 /dev/ui、404 与私密详情页） */
 export function getSitemapPaths(): string[] {
-  return [...STATIC_PATHS, ...getDetailPaths()];
+  return [...STATIC_PATHS, ...getPublicDetailPaths()];
 }

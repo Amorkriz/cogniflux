@@ -27,6 +27,7 @@ import {
   Tag,
 } from "@/shared/ui";
 import { formatDate } from "@/shared/utils";
+import { isPubliclyListable } from "@/shared/utils/content";
 
 import type { ComponentType } from "react";
 
@@ -47,10 +48,14 @@ export async function loader({ params }: Route.LoaderArgs) {
       // 序列化前净化 related，避免生产产物泄露 draft slug
       sanitizeRelated([article]),
     ]);
-  const index = articles.findIndex((item) => item.slug === article.slug);
-  const newer = index > 0 ? articles[index - 1] : undefined;
+  // 上一篇/下一篇只在公开可列出文章间导航（私密文章不进导航链，ADR-010）
+  const listable = articles.filter(isPubliclyListable);
+  const listableIndex = listable.findIndex((item) => item.slug === article.slug);
+  const newer = listableIndex > 0 ? listable[listableIndex - 1] : undefined;
   const older =
-    index >= 0 && index < articles.length - 1 ? articles[index + 1] : undefined;
+    listableIndex >= 0 && listableIndex < listable.length - 1
+      ? listable[listableIndex + 1]
+      : undefined;
   return {
     site,
     article: safeArticle ?? article,
@@ -80,6 +85,10 @@ export function meta({ loaderData: data }: Route.MetaArgs) {
       type: "article",
       locale: site.locale,
     }),
+    // 私密文章（ADR-010）：不进搜索引擎索引
+    ...(article.visibility === "private"
+      ? [{ name: "robots", content: "noindex,nofollow" }]
+      : []),
     blogPostingJsonLd({
       headline: article.title,
       description,
@@ -128,6 +137,9 @@ function BodyFallback() {
 export default function WritingDetail({ loaderData }: Route.ComponentProps) {
   const { article, headings, related, referencedBy, newer, older } = loaderData;
   const Body = articleBody(article.slug);
+  // 私密文章（ADR-010）：frontmatter 标题区为中性占位不渲染，
+  // 正文首个 H1 即真实标题；无 readingTime/TOC（原文不进公开 chunk）。
+  const isPrivate = article.visibility === "private";
 
   return (
     <div className="mx-auto max-w-page px-4 py-section sm:px-6">
@@ -148,12 +160,16 @@ export default function WritingDetail({ loaderData }: Route.ComponentProps) {
               <Badge variant="warning">DRAFT</Badge>
             ) : null}
           </div>
-          <h1 className="mt-3 max-w-prose-container text-3xl font-bold tracking-tight text-primary sm:text-4xl">
-            {article.title}
-          </h1>
-          <p className="mt-4 max-w-prose-container text-lg text-secondary">
-            {article.summary}
-          </p>
+          {isPrivate ? null : (
+            <>
+              <h1 className="mt-3 max-w-prose-container text-3xl font-bold tracking-tight text-primary sm:text-4xl">
+                {article.title}
+              </h1>
+              <p className="mt-4 max-w-prose-container text-lg text-secondary">
+                {article.summary}
+              </p>
+            </>
+          )}
           <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-tertiary">
             <time dateTime={article.createdAt}>
               {formatDate(article.createdAt)}
@@ -161,10 +177,12 @@ export default function WritingDetail({ loaderData }: Route.ComponentProps) {
             {article.updatedAt ? (
               <span>更新于 {formatDate(article.updatedAt)}</span>
             ) : null}
-            <span className="inline-flex items-center gap-1">
-              <Clock aria-hidden="true" className="size-4" />
-              {article.readingTime} 分钟
-            </span>
+            {isPrivate ? null : (
+              <span className="inline-flex items-center gap-1">
+                <Clock aria-hidden="true" className="size-4" />
+                {article.readingTime} 分钟
+              </span>
+            )}
             {article.tags.map((tag) => (
               <Tag key={tag}>#{tag}</Tag>
             ))}
@@ -179,7 +197,7 @@ export default function WritingDetail({ loaderData }: Route.ComponentProps) {
           </Suspense>
         </FadeIn>
 
-        {headings.length > 0 ? (
+        {!isPrivate && headings.length > 0 ? (
           <FadeIn delay={0.2} className="hidden lg:block">
             <nav aria-label="目录" className="sticky top-24">
               <p className="font-mono text-xs text-tertiary">目录</p>

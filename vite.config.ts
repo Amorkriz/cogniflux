@@ -68,6 +68,27 @@ export default defineConfig({
       "@content": path.resolve(rootDir, "content"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // 私密文章正文 chunk（ADR-010）隔离到 assets/private/，
+        // 由 nginx auth_request 口令门拦截；其余 chunk 保持 Vite 默认命名。
+        // 精确匹配目录段 {4位年份}/p-年份-序号/index.mdx，避免公开 slug
+        // 含 p-数字子串（如 my-p-2026-001-notes）被误分类进口令门。
+        chunkFileNames(chunkInfo) {
+          const facade = chunkInfo.facadeModuleId ?? "";
+          if (
+            /\/content\/articles\/\d{4}\/p-\d{4}-\d{3}\/index\.mdx$/.test(
+              facade,
+            )
+          ) {
+            return "assets/private/[name]-[hash].js";
+          }
+          return "assets/[name]-[hash].js";
+        },
+      },
+    },
+  },
   server: {
     // dev 下将 /api 代理到本机 orchestrator 后端（含 WS），
     // 保持与生产 nginx 同源模型一致：前端始终走相对路径 /api/*。

@@ -13,6 +13,8 @@ export interface BaseContent {
   /** 列表页摘要，≤160 字，兼作默认 SEO description */
   summary: string;
   status: ContentStatus;
+  /** 可见性（ADR-010）：private 由 nginx auth_request 拦截；缺省视为 public */
+  visibility?: "public" | "private";
   /** ISO 日期 */
   createdAt: string;
   updatedAt?: string;

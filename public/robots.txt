@@ -3,5 +3,7 @@ User-agent: *
 Allow: /
 # 内部组件陈列页不进索引
 Disallow: /dev/ui
+# 私密文章（ADR-010）不进索引
+Disallow: /writing/p-
 
 Sitemap: https://cogniflux.me/sitemap.xml

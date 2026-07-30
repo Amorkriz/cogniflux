@@ -34,3 +34,14 @@ export function filterVisible<T extends { status: ContentStatus }>(
 export function byDateDesc(a: string, b: string): number {
   return a < b ? 1 : a > b ? -1 : 0;
 }
+
+/**
+ * 聚合出口可列出性（ADR-010）：visibility=private 的内容不得把
+ * slug/title 带到其他公开页面（首页最新/反向关联/related 链路等）。
+ * 与 status 正交：只看 visibility，draft 过滤仍由 isVisible 负责。
+ */
+export function isPubliclyListable(item: {
+  visibility?: "public" | "private";
+}): boolean {
+  return item.visibility !== "private";
+}

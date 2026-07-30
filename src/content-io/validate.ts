@@ -46,6 +46,10 @@ export const baseContentSchema = z.object({
     .min(1, { message: "summary 必填（列表页与 SEO 的最低保障）" })
     .max(160, { message: "summary 不能超过 160 字" }),
   status: contentStatusSchema,
+  /** 可见性：private 走 nginx 口令门（ADR-010），缺省 public。
+   * 注：.default().optional() 顺序下缺省时字段值为 undefined，
+   * 语义视为 public（所有判断均用 === "private"，行为安全）。 */
+  visibility: z.enum(["public", "private"]).default("public").optional(),
   createdAt: isoDateInput,
   updatedAt: isoDateInput.optional(),
   tags: z.array(z.string()).default([]),

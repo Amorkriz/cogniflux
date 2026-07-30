@@ -14,3 +14,7 @@ export {
 } from "./repository";
 export type { ArticleDetail } from "./repository";
 export { ArticleCard, ARTICLE_CATEGORY_LABEL } from "./components/ArticleCard";
+export {
+  PrivateArticleCard,
+  type PrivateArticleCardProps,
+} from "./components/PrivateArticleCard";

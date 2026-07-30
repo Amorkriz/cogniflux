@@ -1,5 +1,5 @@
 import type { Route } from "./+types/index";
-import { ArticleCard, getArticles } from "@/domains/articles";
+import { ArticleCard, getArticles, PrivateArticleCard } from "@/domains/articles";
 import { getSiteSettings, sanitizeRelated } from "@/domains/site";
 import { PageHero } from "@/shared/components";
 import { Stagger } from "@/shared/motion";
@@ -39,9 +39,18 @@ export default function Writing({ loaderData }: Route.ComponentProps) {
       />
       {articles.length > 0 ? (
         <Stagger className="mt-block grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {articles.map((article) => (
-            <ArticleCard key={article.slug} article={article} />
-          ))}
+          {articles.map((article) =>
+            article.visibility === "private" ? (
+              // 私密文章（ADR-010）：统一中性占位卡，真实标题不进公开 HTML
+              <PrivateArticleCard
+                key={article.slug}
+                slug={article.slug}
+                createdAt={article.createdAt}
+              />
+            ) : (
+              <ArticleCard key={article.slug} article={article} />
+            ),
+          )}
         </Stagger>
       ) : (
         <div className="mt-block">

@@ -129,5 +129,5 @@ graph TB
 - [DESIGN.md](./DESIGN.md)：设计令牌与主题使用法
 - [CHECKLIST.md](./CHECKLIST.md)：发布前检查清单
 - [COMPANION.md](./COMPANION.md)：看板娘形象制作与更换指南
-- [adr/](./adr/)：ADR-001…009 架构决策记录
+- [adr/](./adr/)：ADR-001…011 架构决策记录
 - [../AGENTS.md](../AGENTS.md)：AI 协作规则（每次会话自动读取）

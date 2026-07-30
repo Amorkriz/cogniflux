@@ -29,6 +29,7 @@
 | `title` | string | 是 | 标题，非空 |
 | `summary` | string | 是 | 列表页摘要，≤160 字，兼作默认 SEO description |
 | `status` | `draft \| published \| archived` | 是 | 发布状态，见 §4 draft 语义 |
+| `visibility` | `public \| private` | 否（默认 `public`） | 可见性（ADR-010）：`private` 详情页照常 prerender，但由 nginx `auth_request` 拦截，仅作者登录可读；见 §4.1 私密中性约定 |
 | `createdAt` | ISO 日期字符串 | 是 | 如 `2026-07-26`（YAML 裸日期会被自动归一化为 ISO 字符串） |
 | `updatedAt` | ISO 日期字符串 | 否 | 更新时间 |
 | `tags` | string[] | 否（默认 `[]`） | 标签 |
@@ -123,6 +124,19 @@
 - `status: published`：正式发布，进入构建与 SEO 产物。
 - `status: archived`：归档，不在列表展示。
 - 项目/Agent 的业务状态（`projectStatus` / `agentStatus`）与发布 `status` 相互独立。
+
+### 4.1 私密文章中性约定（`visibility: private`，ADR-010，仅 Article）
+
+私密文章的 frontmatter **不得含任何秘密**（frontmatter 会随 eager glob 进入公开 JS chunk），`pnpm validate-content` 强制校验以下约束，违反即构建失败：
+
+- `status` 必须为 `published`（私密与草稿语义不得混用）；
+- `slug` 必须为中性编号 `p-年份-序号`（如 `p-2026-001`，正则 `^p-\d{4}-\d{3}$`）；
+- `title` 固定为“私密文章”，`summary` 置空或固定为“该文章仅作者可见。”；**真实标题写在 MDX 正文首个 H1**（随正文受保护）；
+- 不得设置 `cover` / `seo` / `related`（避免元数据与关联链路泄露）。
+
+反向约束：公开文章 slug 不得以“p-数字”形态开头（会误撞 nginx 保护路径 `/writing/p-`）。
+
+衍生行为：私密文章无 readingTime/TOC（原文被排除出公开 chunk）；列表页展示中性占位卡；不进首页最新/反向关联/sitemap/RSS；正文 chunk 输出到 `assets/private/` 受口令门保护。
 
 ## 5. _templates 用法
 
