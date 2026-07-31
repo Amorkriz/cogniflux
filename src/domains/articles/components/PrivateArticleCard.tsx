@@ -25,8 +25,10 @@ export function PrivateArticleCard({ slug, createdAt }: PrivateArticleCardProps)
         </div>
         <h3 className="text-lg font-semibold text-primary">
           {/* stretched-link：整卡可点，链接文本仍是标题（键盘/读屏可达） */}
+          {/* reloadDocument：整页跳转跳过 .data 预取——客户端导航的 .data 请求会被 nginx 鉴权拦截，turbo-stream 解码失败落错误边界 */}
           <Link
             to={`/writing/${slug}`}
+            reloadDocument
             className="transition-colors duration-(--motion-fast) after:absolute after:inset-0 hover:text-accent"
           >
             私密文章
