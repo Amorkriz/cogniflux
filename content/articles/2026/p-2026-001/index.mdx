@@ -22,7 +22,7 @@ lang: zh
 
 预期节奏：不求快，求"每个概念都用 Java 的旧地图校准过"。第一轮先把 TypeScript 和 React 的世界观立住（就是这篇的主体）；第二轮回到本站代码里做小改造练手；第三轮独立上功能。每一轮结束回来更新这篇笔记。
 
-所以请注意：**这是一份活文档**。里面的"坑与顿悟记录"（第六节）会持续追加，学习路线图（第五节）的勾会一个一个打上。未来的我，如果你回来读到某段话觉得幼稚，别删，划掉并在旁边写上你现在的理解——那条修改轨迹本身，就是这篇笔记存在的意义。
+所以请注意：**这是一份活文档**。里面的"坑与顿悟记录"（第十三节）会持续追加，学习路线图（第十二节）的勾会一个一个打上。未来的我，如果你回来读到某段话觉得幼稚，别删，划掉并在旁边写上你现在的理解——那条修改轨迹本身，就是这篇笔记存在的意义。
 
 ## 一 先纠正世界观
 
@@ -600,7 +600,608 @@ export interface ArticleCardProps {
 
 **读组件先读 Props interface**，就像读服务先读接口定义——这是我给自己定的第一条读码习惯。一个站的全部组件契约摸完，这个站的"前端 API 面"就清楚了。
 
-## 五 学习路线图
+---
+
+## 五 组件组合与拆分——前端的"分层架构"
+
+**Java 翻译**：Controller 收请求 → Service 编排业务 → 通用工具类提供原子能力。分层的规矩是"每层只关心一件事，只向下依赖，不向上"。前端的对应关系几乎可以逐层对齐：
+
+```
+页面 pages/writing/index.tsx          ← Controller：取数据、定版面、分发
+  └→ 领域组件 domains/articles/components/ArticleCard.tsx   ← Service：懂业务词汇
+       └→ 共享 UI shared/ui/Card.tsx、Badge.tsx            ← 通用工具：只懂视觉
+```
+
+**翻译失真点**：Java 的分层切的是**业务流程的纵深**（请求怎么一路走到数据库），前端的分层切的是**"知识的所属权"**——谁允许知道业务词汇。所以判断一段代码该放哪一层，不要问"它做什么业务"，要问**"它需不需要认识 `Article` 这个类型"**：
+
+- `shared/ui` 里的 `Card`、`Badge` **不认识** `Article`，它们只认识 `padding`、`variant` 这种视觉参数。所以它们可以被文章、项目、Agent 三个领域同时复用。
+- `domains/articles` 里的 `ArticleCard` **认识** `Article`，知道"文章有分类、有阅读时长、草稿要打 DRAFT 标"。这些领域词汇不允许泄漏到 `shared/ui`。
+- `pages/writing/index.tsx` 认识"这个页面要展示一个文章网格"，但不关心一张卡片长什么样。
+
+这条"知识不上移"的纪律，和后端"工具类不允许 import 业务实体"是同一条纪律。我在 Java 里见过太多 `Utils` 类里塞满 `OrderDTO` 的惨案，前端只是把同一个陷阱换了个位置：往 `shared/ui` 里塞一个 `articleTitle` prop。
+
+### 5.1 领域组件：把共享基元组合起来
+
+看本站 `ArticleCard` 的真实骨架（节选，去掉了部分类名）：
+
+```tsx
+import { Link } from "react-router";
+
+import { Badge, Card, Clock, Tag } from "@/shared/ui";
+import { cn, formatDate } from "@/shared/utils";
+
+import type { Article, ArticleCategory } from "../types";
+
+/** 文章分类展示标签（领域词汇归领域） */
+export const ARTICLE_CATEGORY_LABEL: Record<ArticleCategory, string> = {
+  engineering: "工程",
+  agents: "Agents",
+  thinking: "思考",
+  buildlog: "构建日志",
+};
+
+export function ArticleCard({ article, size = "default" }: ArticleCardProps) {
+  return (
+    <Card interactive className="relative h-full">
+      <article className="flex h-full flex-col gap-3">
+        <Badge variant="outline">{ARTICLE_CATEGORY_LABEL[article.category]}</Badge>
+        <h3 className={cn("font-semibold text-primary", TITLE_SIZE[size])}>
+          <Link to={`/writing/${article.slug}`}>{article.title}</Link>
+        </h3>
+        <p className={cn("text-sm text-secondary", SUMMARY_CLAMP[size])}>
+          {article.summary}
+        </p>
+      </article>
+    </Card>
+  );
+}
+```
+
+三处值得停下来看：
+
+**第一，`ARTICLE_CATEGORY_LABEL` 是一张 `Record` 映射表。** `Record<ArticleCategory, string>` 的意思是"键必须穷尽 `ArticleCategory` 的每一个成员"——哪天 schema 里加了第五个分类而这张表没跟上，编译器立刻报错。这就是 Java 里 `EnumMap` 加上"switch 必须覆盖所有枚举"的组合效果，但 TS 是靠类型强制的，不需要写 `default: throw new IllegalStateException()`。
+
+**第二，组合而非继承。** `ArticleCard` 没有 `extends Card`，它是把 `Card` 当积木**包在外面**。React 里几乎不存在组件继承这回事——所有复用都靠组合（把子组件放进去）和 props（把参数传进去）。Java 人第一反应的"抽一个 `AbstractCard` 基类，子类覆写 `renderBody()`"在这里是彻底的反模式。想复用一段渲染逻辑？把它抽成一个更小的组件，或者抽成一个普通函数。
+
+**第三，变体不在 JSX 里手拼。** 卡片有两种尺寸（`default` / `featured`），差异被收进三张映射表：
+
+```tsx
+/** size → 标题字号（变体映射集中管理，不在 JSX 手拼分叉） */
+const TITLE_SIZE: Record<NonNullable<ArticleCardProps["size"]>, string> = {
+  default: "text-lg",
+  featured: "text-xl sm:text-2xl",
+};
+
+/** size → 摘要行数（featured 放宽） */
+const SUMMARY_CLAMP: Record<NonNullable<ArticleCardProps["size"]>, string> = {
+  default: "line-clamp-3",
+  featured: "line-clamp-4",
+};
+```
+
+`ArticleCardProps["size"]` 是**索引访问类型**（从已有类型上"取一个字段的类型"，得到 `"default" | "featured" | undefined`），`NonNullable<...>` 再把 `undefined` 剔掉。这一串写法的收益是：`size` 的合法取值只在 `ArticleCardProps` 里定义**一次**，三张映射表全部自动跟随。加一个 `size="compact"`，三张表同时报"缺 key"——改动点被编译器一次性指出来，一个都跑不掉。Java 里想达到同样效果，得靠枚举加上三个 `EnumMap` 加上单测兜底。
+
+### 5.2 共享基元：用配置表代替 if/else 拼字符串
+
+往下一层看 `shared/ui/Card.tsx` 怎么处理变体（真实代码，节选）：
+
+```tsx
+export const cardVariants = cva("rounded-card border border-default bg-surface", {
+  variants: {
+    padding: {
+      none: "",
+      sm: "p-4",
+      md: "p-6",
+    },
+    elevated: {
+      true: "shadow-card",
+      false: "",
+    },
+    /** 卡片 hover 微抬升：纯 CSS，reduced-motion 时取消 */
+    interactive: {
+      true: "transition-[transform,box-shadow] duration-(--motion-base) ease-out-token hover:-translate-y-0.5 hover:shadow-card motion-reduce:transition-none",
+      false: "",
+    },
+  },
+  defaultVariants: {
+    padding: "md",
+    elevated: false,
+    interactive: false,
+  },
+});
+
+export interface CardProps
+  extends ComponentProps<"div">,
+    VariantProps<typeof cardVariants> {}
+```
+
+`cva`（class-variance-authority）干的事很朴素：**把"条件 → 样式"的分支逻辑，从 if/else 字符串拼接改成一张声明式配置表**。Java 人熟悉这个动作——就是用 `Map` 替换长 switch，或者用策略表替换分支树。收益也一样：新增一个变体是加一行数据，不是改一段逻辑。
+
+真正有意思的是最后那三行。`VariantProps<typeof cardVariants>` 把配置表**反向推导成 props 类型**：`padding?: "none" | "sm" | "md"`、`interactive?: boolean` 全是自动长出来的，一行没手写。配上 `ComponentProps<"div">`（原生 div 的全部属性，比如 `className`、`onClick`、`aria-*`），`CardProps` 就成了"原生能力 + 变体能力"的并集。
+
+这里有个 Java 人容易忽略的方向感差异：Java 的习惯是**先定契约（interface），再写实现**；这段代码是**先写配置表（值），再从值反推类型**。`typeof cardVariants` 就是从值世界跨回类型世界的那道桥（回扣 2.4：类型和值是两个平行世界，但 `typeof` 能单向取样）。在 TS 里，这种"实现即契约"的写法非常常见，一开始会觉得倒着走，习惯之后会发现它彻底消灭了"配置表和类型定义不同步"这类 bug。
+
+### 5.3 什么时候该拆组件
+
+后端拆方法有句老话"一个方法只做一件事"，落地时靠手感。前端拆组件我给自己定了三条可执行的硬标准：
+
+1. **props 超过 8 个，必须拆。** props 是组件的 API，参数爆炸说明这个组件承担了多个职责——和 Java 里"构造器 8 个参数该考虑拆类"是同一个信号。
+2. **出现分叉渲染，必须拆。** 组件里如果开始写"如果是 A 类型渲染这一大坨，如果是 B 类型渲染那一大坨"，那就是两个组件挤在一个函数里。本站列表页的做法是在**页面层**分叉，把两种卡片分别交给两个组件：
+
+```tsx
+{articles.map((article) =>
+  article.visibility === "private" ? (
+    <PrivateArticleCard key={article.slug} slug={article.slug} createdAt={article.createdAt} />
+  ) : (
+    <ArticleCard key={article.slug} article={article} />
+  ),
+)}
+```
+
+3. **"两次规则"：第 2 次复用才上移。** 第一次写在用它的地方；第二个地方要用了，才提到 `shared/ui`。这一条是刻意反 DRY 直觉的——后端做通用库做久了，很容易在**第一次**就开始设计"通用卡片组件"，结果抽象出来的形状是照着唯一一个用例长的，第二个用例一来就得推翻重做。等到有两个真实用例，共性才是**观察出来的**而不是**猜出来的**。
+
+反过来说，**不该拆**的信号同样明确：为了让文件短一点而把一段 JSX 挪走，只会让阅读时多跳一次文件。组件的边界应该落在"职责"上，不是落在"行数"上。
+
+---
+
+## 六 路由——前端的 Controller 层
+
+**Java 翻译**：`@RequestMapping("/articles/{slug}")` 把 URL 映射到一个处理方法。前端是 `route("writing/:slug", "pages/writing/detail.tsx")`，把 URL 映射到一个页面文件。概念对齐得几乎无损：路径模板、路径参数、默认页、404 兜底，两边都有。
+
+**翻译失真点**有两个，都挺关键。
+
+其一，**Spring 的路由是散的，前端的路由是一张表**。Spring 的 URL 面分散在几十个 Controller 的注解里，要想知道"这个服务一共暴露了哪些 URL"，得靠启动日志或者 actuator 端点去汇总。而 React Router 的配置模式把全站 URL 面平铺在一个文件里——本站的 `src/routes.ts` 全文如下，一眼看完：
+
+```ts
+import type { RouteConfig } from "@react-router/dev/routes";
+import { index, route } from "@react-router/dev/routes";
+
+/** 路由表：8 个栏目 + 4 条详情路由 + /dev/ui 组件陈列页 + /workspace 私有页 + 404 兜底 */
+export default [
+  index("pages/home/index.tsx"),
+  route("agents", "pages/agents/index.tsx"),
+  route("agents/:slug", "pages/agents/detail.tsx"),
+  route("writing", "pages/writing/index.tsx"),
+  route("writing/:slug", "pages/writing/detail.tsx"),
+  route("lab", "pages/lab/index.tsx"),
+  route("lab/:slug", "pages/lab/detail.tsx"),
+  route("now", "pages/now/index.tsx"),
+  route("projects", "pages/projects/index.tsx"),
+  route("projects/:slug", "pages/projects/detail.tsx"),
+  route("toolbox", "pages/toolbox/index.tsx"),
+  route("about", "pages/about/index.tsx"),
+  route("dev/ui", "pages/dev-ui/index.tsx"),
+  route("workspace", "pages/workspace/index.tsx"),
+  route("private-notice", "pages/private-notice/index.tsx"),
+  route("*", "pages/not-found.tsx"),
+] satisfies RouteConfig;
+```
+
+逐条对齐 Java 概念：
+
+- `route("writing/:slug", ...)` 的 `:slug` 就是 `@PathVariable`。取值方式在第七节会看到（`params.slug`）。
+- `index(...)` 是**这一层的默认页**，等价于 `@GetMapping("/")`。
+- `route("*", "pages/not-found.tsx")` 是 404 兜底，作用近似 Spring 的 `@ControllerAdvice` 处理 `NoHandlerFoundException`——只不过它是一个正常页面，不是异常处理器。
+- `satisfies RouteConfig` 是 TS 的"校验但不擦形状"运算符：既检查这个数组符合 `RouteConfig`，又保留每一项的精确类型（如果写 `: RouteConfig` 标注，精确类型会被抹平成宽类型）。这是 2.2 讲的推断哲学在配置文件里的延伸——**让编译器校验，但别让标注吃掉信息**。
+
+有一处容易踩的直觉陷阱：**声明顺序不决定匹配优先级**。Java 人（尤其写过 Servlet 的）会本能地觉得"通配 `*` 必须放最后，否则会把后面的路由全吃掉"。React Router 的匹配是按**路径具体度排序**的，静态段比动态段优先、动态段比通配优先，所以 `/writing/hello` 稳定命中 `writing/:slug`，不会被 `*` 抢走。这张表的顺序是给人读的，不是给匹配器用的。
+
+其二（更重要），**这张表是构建期的输入，不只是运行时的分发表**。它至少决定三件事：
+
+1. **代码分割边界**：每个页面文件是一个独立 chunk，用户访问 `/writing` 不会下载 `/workspace` 的代码。
+2. **预渲染清单**：本站是纯静态站，构建时要为每条路由生成真实的 HTML 文件（第九节细讲）。
+3. **类型生成**：`react-router typegen` 会读这张表，为每个页面生成 `./+types/index` 这类类型文件——第七节里页面组件签名上的 `Route.ComponentProps`、`Route.LoaderArgs`，全部是从这张表长出来的。所以 `params.slug` 有类型、拼错 `params.slgu` 会编译失败，源头都在这一行 `route("writing/:slug", ...)`。
+
+这第三点在 Java 里没有对应物，值得记一笔：**路由表不只是配置，它是类型的源头之一**。改路径参数名，全站相关页面的类型立刻跟着变；这种"配置驱动类型"的联动，是我在 Spring 里从没体验过的安全感。
+
+---
+
+## 七 数据流——从文件到页面的完整链路
+
+**Java 翻译**：数据库 → DAO/Mapper → Service → Controller → 视图。本站的链路形状几乎一比一：
+
+```
+MDX 文件（content/articles/…）        ← 数据库
+  → content-io（唯一碰文件的层）        ← DAO/Mapper
+    → domains/articles/repository.ts   ← Service：校验、派生、过滤
+      → 页面 loader                     ← Controller：编排 + 组装视图模型
+        → 组件                          ← 视图
+```
+
+**翻译失真点**：没有数据库，数据源是磁盘上的 Markdown 文件；更要紧的是——**这条链路整个跑在构建期**。`pnpm build` 的时候它跑一遍，把结果写成静态 HTML；线上没有任何一行这段代码在执行。所以它"长得像后端，但执行时机是编译期"。Java 里最接近的心智模型是注解处理器（APT）：形状是普通代码，运行时机在编译阶段。
+
+### 7.1 content-io：唯一允许碰文件的层
+
+```ts
+/** 公开文章正文模块：懒加载（按文章分包） */
+const articleModules = import.meta.glob<MdxModule>([
+  "/content/articles/*/*/index.mdx",
+  "!/content/articles/*/p-*/index.mdx",
+]);
+
+/** 公开文章 frontmatter：构建期 eager 读取（列表页无需拉正文） */
+const articleFrontmatters = import.meta.glob<unknown>(
+  ["/content/articles/*/*/index.mdx", "!/content/articles/*/p-*/index.mdx"],
+  { eager: true, import: "frontmatter" },
+);
+
+/** 全部公开文章条目（含 draft，发布过滤由 repository 负责） */
+export function loadArticleEntries(): ContentEntry[] {
+  return toEntries(articleFrontmatters, articleModules, articleRaw);
+}
+```
+
+`import.meta.glob` 是**构建工具提供的批量导入**，作用等同于 Spring 的 classpath 资源扫描（`ResourcePatternResolver` 那一套 `classpath*:` 通配）：给一个 glob 模式，拿回一批模块。两个参数值得记住：
+
+- **不带 `eager`**：拿到的是一张"路径 → 加载函数"的表，函数被调用时才真正下载/执行这个模块。这就是懒加载，也是路由级代码分割的实现方式。
+- **带 `eager: true`**：构建时就把内容内联进产物。这里只 eager 读 `frontmatter`（元数据），因为列表页需要标题、日期、分类，但**不需要正文**。
+
+注意 `import.meta.glob<unknown>` 那个 `unknown`：从磁盘读回来的 frontmatter 就是**外部数据**，编译器对它一无所知（回扣 2.6 的纪律）。它必须先过 Zod 才能进入类型世界——`toEntries` 里那行 `validateBaseContent(frontmatter, filePath)` 就是这道闸门，`meta` 字段从此才是可信的 `BaseContent`。
+
+顺带解释那条 `!` 排除规则，因为它正好是**你正在读的这篇文章**得以私密的技术前提：eager glob 会把匹配到的模块内容静态内联进公开产物，所以私密文章（`p-*` 目录）绝不能出现在任何 eager glob 里，只能走懒加载。这也是一个很"后端"的教训——**加载策略即安全边界**，和 JPA 里 `EAGER` 抓取顺手把敏感关联表拖出来是同一类事故。
+
+### 7.2 repository：领域层的三件事
+
+```ts
+/** 读取并构建全部公开文章（含 draft） */
+function buildAll(): ArticleDetail[] {
+  return loadArticleEntries().map((entry) => {
+    const parsed = articleSchema.parse(entry.frontmatter);
+    const article: Article = {
+      ...parsed,
+      readingTime: estimateReadingTime(entry.body),
+    };
+    return { article, headings: extractHeadings(entry.body), load: entry.load };
+  });
+}
+
+/** 文章列表（默认按环境过滤 draft，按 createdAt 倒序） */
+export function getArticles(options?: DraftOptions): Promise<Article[]> {
+  const all = buildAll().map((detail) => detail.article);
+  const visible = filterVisible(all, options).sort((a, b) =>
+    byDateDesc(a.createdAt, b.createdAt),
+  );
+  return Promise.resolve(visible);
+}
+```
+
+这一层干的正是 Java Service 干的三件事：**校验**（`articleSchema.parse`）、**派生**（`readingTime` 由正文字数估算，不在 frontmatter 里）、**过滤与排序**（草稿在生产环境不可见）。
+
+最值得琢磨的是返回类型：`Promise<Article[]>`。当前实现完全同步——数据就在内存里，末尾一句 `Promise.resolve` 纯属包装。为什么要多此一举？源码注释写得很直白：**"接口签名统一 Promise 返回，未来换 CMS 只替换本文件实现，页面不改。"**
+
+这就是依赖倒置，只是换了个战场。Java 里我们让 Service 依赖 `Repository` 接口而不是 `JdbcRepository` 实现类，为的是将来换存储不动上层；这里 `Promise` 就是那个接口——它把"取数可能是异步的"这个事实**提前写进契约**。哪天数据源从磁盘换成 HTTP API，`getArticles` 内部改成真 `await`，而所有页面一行都不用改，因为它们从第一天起就在 `await`。
+
+先付出一点点包装成本，换取以后改一处而不是改二十处——这个取舍后端人会心一笑：这是我们最熟悉的手艺，只是名字从"面向接口编程"变成了"统一异步签名"。
+
+### 7.3 loader：渲染之前的准备阶段
+
+```ts
+export async function loader() {
+  const [site, rawArticles] = await Promise.all([getSiteSettings(), getArticles()]);
+  // 序列化前净化 related，避免生产产物泄露 draft slug
+  const articles = await sanitizeRelated(rawArticles);
+  return { site, articles };
+}
+
+export default function Writing({ loaderData }: Route.ComponentProps) {
+  const { articles } = loaderData;
+  return (
+    <Stagger className="mt-block grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {articles.map((article) => (
+        <ArticleCard key={article.slug} article={article} />
+      ))}
+    </Stagger>
+  );
+}
+```
+
+`loader` 是 React Router 的约定导出：**它在页面组件渲染之前执行完，组件通过 `loaderData` 拿到已就绪的数据**。Java 类比是 Controller 方法体先把 model 填满，再交给模板引擎渲染；`@ModelAttribute` 那种"渲染前准备好"的语义也很接近。
+
+这个约定带来一个非常实在的好处：**组件里不需要写 loading 分支**。它拿到的 `articles` 一定是有值的数组，不是 `undefined`，不是"正在加载中"。这和 3.2 那条"组件是纯函数"能对上——取数这件不纯的事被搬到了组件之外，组件回归纯粹的"数据 → 界面"。
+
+三个细节，每个都对应一条 Java 经验：
+
+**一，`Promise.all` 是并发取数。** 两个数据源互不依赖，就别串行等。等价于 Java 的 `CompletableFuture.allOf`，只是写法轻得多。写 `await a; await b;` 是初学者最常见的性能浪费。
+
+**二，`loaderData` 的类型不用手写。** `Route.ComponentProps` 由 `typegen` 从路由表加上 loader 的**返回值**推导出来（第六节说的"路由表是类型源头"）。往 loader 返回值里加一个字段，页面里立刻就能有类型地取到它。对比后端要手写一个 `XxxVO` 再手动映射——这里契约是从实现自动长出来的（又是 5.2 那个"实现即契约"的方向感）。
+
+**三，loader 的返回值是会公开的产物，必须脱敏。** 那行 `sanitizeRelated` 的注释是全站最像后端的一句话："序列化前净化 related，避免生产产物泄露 draft slug"。loader 返回的东西会在构建期被序列化进 HTML/JSON，任何人都能查看——所以它等价于**后端接口的响应体**，同样的脱敏纪律一字不差地适用。
+
+配套的一条约束：**返回值必须可序列化**，函数、闭包这类东西不能穿过 loader 边界。本站文章详情页正好被这条规则约束过——`ArticleDetail` 里那个懒加载正文的 `load` 函数没法随 loaderData 下发，于是详情页只在 loader 里返回元数据，渲染侧再用 `lazy()` 单独把正文模块拉进来。Java 人对这个约束很熟：这就是 DTO 只能装数据、装不了行为。
+
+把这条链路完整走一遍，我对前端的敬意上升了一格：**它不是"写页面"，它是一套完整的分层数据管线，只不过管线跑在构建机上，产物是 HTML 而不是 JSON。**
+
+---
+
+## 八 样式系统——前端的"配置中心"
+
+**Java 翻译**：`application.yml` 把所有可变参数集中到一处，业务代码只读 key 不写值；换环境就换一份配置，一行业务代码不动。本站的 `src/styles/tokens.css` 干的是一模一样的事，只不过集中的是**视觉参数**：颜色、圆角、阴影、间距、动画时长。
+
+**翻译失真点**：`application.yml` 是**启动时**读一次，改了要重启；CSS 变量是**运行时级联**的——改 `:root` 上的一个值，全站所有引用它的地方**即时**跟着变，不需要重新编译，也不需要 React 重渲染任何组件。这一条很关键，它直接否定了 Java 人的第一直觉："把颜色定义成一个 `Colors` 常量类到处 import"。那样写也能跑，但一到切深色主题就得把整棵组件树按新值重渲染一遗；而 CSS 变量方案只是浏览器重新算一遍样式，JS 层全程不知情。
+
+### 8.1 两层令牌：原料层与业务层
+
+本站的令牌分两层，职责划得很硬（节选）：
+
+```css
+:root {
+  /* ------ Primitive 层：原料，业务代码禁止直接使用 ------ */
+  --gray-50: #fafafa;
+  --gray-700: #3f3f46;
+  --gray-900: #18181b;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --radius-3: 10px;
+  --shadow-2: 0 1px 3px rgb(0 0 0 / 0.08), 0 4px 12px rgb(0 0 0 / 0.05);
+  --duration-200: 200ms;
+
+  /* ------ Semantic 层：业务唯一入口 ------ */
+  --bg-base: var(--gray-50);
+  --bg-surface: #ffffff;
+  --text-primary: var(--gray-900);
+  --text-secondary: var(--gray-700);
+  --border-default: var(--gray-200);
+  --accent: var(--brand-600);
+  --radius-card: var(--radius-3);
+  --shadow-card: var(--shadow-2);
+  --motion-base: var(--duration-200);
+}
+```
+
+两层的分工用后端词汇说得清楚：
+
+- **Primitive 层是存储层的真实值**（数据库连接串、具体 IP 端口）。它回答"深灰到底是哪个十六进制"。业务代码**禁止**直接碰。
+- **Semantic 层是业务读的 key**（`spring.datasource.url`）。它回答"正文的主要文本该用什么色"，至于那个色具体是哪个灰阶，不关心。
+
+主题切换就是典型的 profile 覆盖：深色主题只重新声明 Semantic 层的同名 key（`--text-primary` 改指 `--gray-50`），Primitive 层不动、业务代码不动。与 `application-prod.yml` 覆盖 `application.yml` 同名 key 是完全同一个机制。
+
+注意令牌注释里那些对比度数字（`#3f3f46 on #fafafa ≈ 10.0:1`）。这相当于在配置文件旁边写下"这个连接池大小为何是 20"的依据。可访问性红线（正文对比度 ≥ 4.5:1）在这一层一次性保障，而不是指望每个写组件的人自己算——把约束下沉到配置层，而不是依赖纪律，这也是后端熟悉的套路。
+
+### 8.2 业务组件里的"零裸值"写法
+
+回头看第五节的 `ArticleCard`，把它的类名逐个对回令牌：
+
+```tsx
+<Card interactive>                              {/* 动画时长 = --motion-base */}
+<h3 className="font-semibold text-primary">     {/* 文本色   = --text-primary */}
+<p className="text-sm text-secondary">          {/* 次级文本 = --text-secondary */}
+<img className="rounded-card object-cover" />   {/* 圆角     = --radius-card */}
+<Link className="hover:text-accent" />          {/* 强调色   = --accent */}
+```
+
+整个组件里**一个十六进制颜色也没有，一个像素值也没有，一个毫秒数也没有**。这就是红线：
+
+> 业务组件禁止裸色值、禁止裸像素值、禁止裸动画参数。
+
+为什么不能直接写 `#3b82f6`？和"为什么不能把数据库连接串硬编码在 DAO 里"是一个道理，而且病状也一模一样：一开始只是一处，半年后它散在 40 个文件里，而且其中三处手滑写成了 `#3b82f7`。然后有一天需要换品牌色。
+
+不过 Tailwind 这套写法对 Java 人有一个很真实的不适：`className` 里塞十几个原子类，第一眼看上去就是"不是说不该写行内样式吗"。我自己坐下来想了想，接受它的理由是：这些原子类并不是裸值，**它们本身就是令牌的引用**——`text-primary` 展开后是 `color: var(--text-primary)`。所以它不是行内样式，它是"写在调用点的配置引用"。判断一段类名健不健康，只看一个标准：它指向令牌，还是硬编码了值。
+
+Tailwind 4 的任意值语法把这个关系写得更赤裸：
+
+```tsx
+// duration-(--motion-base) —— 直接消费语义令牌，而不是 duration-200
+className="transition-colors duration-(--motion-fast) hover:text-accent"
+```
+
+写 `duration-200` 也能跑，但那就是把 200ms 这个決策固定在了这一处；写 `duration-(--motion-fast)` 则是声明"这里要的是全站统一的快节奏"。前者是硬编码，后者是读配置——字数差不多，语义差很多。
+
+这一节给我的最大收益不是学会了几个类名，而是确认了一件事：**前端的样式不是"手艺"，它也是一个可以做依赖倒置、可以定红线、可以靠工具强制的工程子系统。** 后端人在这里的经验是可以直接变现的。
+
+---
+
+## 九 构建工具——前端的 Maven
+
+**Java 翻译**：`pom.xml` 声明依赖与插件，`mvn package` 跑一遍生命周期产出 jar。前端是 `package.json` 声明依赖与命令，`vite build`（本站包一层 `react-router build`）跑一遍插件链产出静态站。连"插件链"这个概念都对得上。
+
+**翻译失真点**：Maven 打的包是给 JVM 用的，格式固定，多大没人在意；vite 打的包是给**陆续不绝的陌生浏览器下载**的，于是构建的目标完全不同：更小、更少往返、能缓存。代码分割、tree shaking、文件名带 hash——这三件事 Maven 一件也不干，而它们全部是第一节那句"代码是现场下载再执行的"的直接后果。
+
+### 9.1 插件链：构建期干了四件事
+
+`vite.config.ts` 的核心结构（精简版）：
+
+```ts
+export default defineConfig({
+  plugins: [
+    validateContentPlugin(), // 构建期 frontmatter 校验：不合法则构建失败
+    mdxPlugin(),             // MDX → JS 组件编译
+    tailwindcss(),           // 扫描类名，生成最小 CSS
+    reactRouter(),           // 读路由表，生成类型 + 分割入口
+  ],
+  resolve: {
+    alias: {
+      "@": path.resolve(rootDir, "src"),
+      "@content": path.resolve(rootDir, "content"),
+    },
+  },
+  test: {
+    include: ["tests/**/*.test.{ts,tsx}"],
+  },
+});
+```
+
+`resolve.alias` 就是模块路径别名，作用类似 Java 的包名前缀：写 `@/shared/ui` 而不是 `../../../shared/ui`。没什么高深的，但它解释了为什么本站所有 import 看上去那么整齐。
+
+真正值得 Java 人护住的是第一个插件。`validateContentPlugin` 的实现只有十行：
+
+```ts
+function validateContentPlugin(): PluginOption {
+  return {
+    name: "cogniflux:validate-content",
+    buildStart() {
+      const result = validateAllContent(rootDir);
+      if (result.errors.length > 0) {
+        throw new Error(formatContentErrors(result.errors));
+      }
+    },
+  };
+}
+```
+
+`buildStart` 钩子 + 抛异常，等价于一个绑在 `validate` 阶段的 Maven 插件（想想 `maven-enforcer-plugin`）：**校验不过，构建直接红，坏内容根本进不了产物**。这与 2.4 讲的 Zod 边界校验是一套机制的两个执行时机：同一套 schema，一次在 `pnpm validate-content` 里单独跑（CI 独立步骤，报错快），一次在构建链里兵强马壮地把关（防绕过）。
+
+本站还有一处构建配置值得一提，因为**你此刻读到的这篇文章就是它切出来的**：
+
+```ts
+build: {
+  rollupOptions: {
+    output: {
+      // 私密文章正文 chunk 隔离到 assets/private/，由 nginx 口令门拦截
+      chunkFileNames(chunkInfo) {
+        const facade = chunkInfo.facadeModuleId ?? "";
+        if (/\/content\/articles\/\d{4}\/p-\d{4}-\d{3}\/index\.mdx$/.test(facade)) {
+          return "assets/private/[name]-[hash].js";
+        }
+        return "assets/[name]-[hash].js";
+      },
+    },
+  },
+},
+```
+
+打包结果的**物理布局**可以编程控制，于是它能变成一道安全边界：把私密正文单独切到一个目录，交给 nginx 在那个路径上加口令。对应的 Java 直觉是"把敏感类拆到单独模块，部署时不放进公网包"——只是前端把它做成了构建配置里的一个正则。
+
+### 9.2 命令：五条线全绿才能交付
+
+```json
+"scripts": {
+  "dev": "react-router dev",
+  "build": "react-router build && tsx scripts/generate-seo.ts",
+  "typecheck": "react-router typegen && tsc",
+  "lint": "eslint .",
+  "test": "vitest run",
+  "validate-content": "tsx scripts/validate-content.ts"
+}
+```
+
+对照 Maven 的生命周期看：`validate-content` ≈ validate，`typecheck` ≈ compile（因为 `tsc` 在这里只检查不产物，真正的翻译由 vite 干），`test` ≈ test，`build` ≈ package。`lint` 对应的是 Checkstyle/SpotBugs 那一档。所以交付前的纪律很好记：**这五条命令全绿**。少跑一条就相当于本地 `mvn -DskipTests` 然后直接上线。
+
+一个容易被 Java 直觉忽略的点：`typecheck` 前面那句 `react-router typegen`。类型文件是**生成物**（第六节说的那些 `+types`），不先生成就直接 `tsc`，会得到一堆莫名其妙的"找不到模块 ./+types/index"。这类事故的心智模型和"忘了跑 mvn generate-sources 就报找不到 QXxx 类"完全一致。
+
+### 9.3 dev 与 build：两种完全不同的东西
+
+这是我一开始最模糊的地方，弄清之后豁然开朗：
+
+- **`pnpm dev` 基本不打包。** 它启一个开发服务器，浏览器要哪个模块就现编译那一个（原生 ESM）。改一个文件，只热替换那一个模块，页面状态都不丢。比 `spring-boot-devtools` 的重启快不止一个量级，因为它**根本不重启**。
+- **`pnpm build` 才是真正的全量构建。** 而且本站的 build 比一般 SPA 多一道工序：预渲染。
+
+```ts
+export default {
+  appDirectory: "src",
+  // 静态站点：构建期 prerender 输出完整 HTML（SEO），无运行时服务端。
+  ssr: false,
+  // 异步枚举：8 栏目 + /dev/ui + 404 + 全部 published 详情页
+  async prerender() {
+    return getPrerenderPaths();
+  },
+} satisfies Config;
+```
+
+`ssr: false` 加 `prerender()` 这两行，定义了本站的全部部署形态：没有运行时服务端，构建时把 `prerender()` 列出的每个路径都访问一遍——跑 loader（第七节）、渲染组件、把结果写成一个 `.html` 文件。产物就是一堆静态文件，nginx 直接侍候。
+
+Java 世界最直接的对应物是 JBake 这类静态站生成器：模板加内容，构建期碾成 HTML。而对比我熟悉的 Spring MVC（模板引擎在**每次请求时**渲染），差别只在一个字：**时机**。把渲染从"每次请求"提前到"一次构建"，换来的是零服务器、零冷启动、无限横向扩展——代价是内容变了必须重新构建。对一个个人博客来说，这笔交易便宜得让人不好意思。
+
+---
+
+## 十 测试——不比后端简单，但也没更难
+
+**Java 翻译**：`describe`/`it`/`expect` 对 `@Nested`/`@Test`/`Assertions`，`pnpm test` 对 `mvn test`。这一节是本文翻译失真最小的一节——写过 JUnit 的人看 Vitest 基本不需要适应期。
+
+**翻译失真点**反而在"少了东西"上：没有 `@SpringBootTest` 那种"先启容器再注入"的环节，因为根本没有容器。`repository` 就是一个普通模块，import 进来直接调。既没有 mock 注入的快乐，也没有启容器的痛苦。
+
+看本站真实测试（节选自 `tests/domains/articles.test.ts`）：
+
+```ts
+import { describe, expect, it } from "vitest";
+
+import { articleSchema, getArticleBySlug, getArticles } from "@/domains/articles";
+
+describe("articles repository", () => {
+  it("取列表：默认过滤草稿（仅 published）", async () => {
+    const list = await getArticles({ includeDrafts: false });
+    expect(list.every((a) => a.status === "published")).toBe(true);
+  });
+
+  it("取列表：includeDrafts 时草稿可见（超集）", async () => {
+    const published = await getArticles({ includeDrafts: false });
+    const withDrafts = await getArticles({ includeDrafts: true });
+    expect(withDrafts.length).toBeGreaterThan(published.length);
+  });
+
+  it("取单条：published 命中并派生 readingTime", async () => {
+    const detail = await getArticleBySlug("hello-cogniflux");
+    expect(detail?.article.readingTime).toBeGreaterThan(0);
+    expect(typeof detail?.load).toBe("function");
+  });
+
+  it("schema 拒绕坏数据（非法 category）", () => {
+    expect(() =>
+      articleSchema.parse({
+        slug: "bad",
+        title: "x",
+        summary: "y",
+        status: "published",
+        createdAt: "2026-07-26",
+        category: "not-a-category",
+      }),
+    ).toThrow();
+  });
+});
+```
+
+四个用例，四条可以直接从 Java 搬过来的经验：
+
+**一、测的是行为，不是实现。** 没有一个用例去碰 `buildAll`、`estimateReadingTime` 这些内部函数（它们根本没导出）。测的全是对外接口的可观察行为：传 `includeDrafts: false` 就不应该看到 draft。这样 7.2 里那个"未来换 CMS 只换 repository 实现"的诺言才立得住——实现换了，这堆测试应该一行不改就继续绿。和测 Service 接口而不测 private 方法是同一条纪律。
+
+**二、用"超集关系"而不是硬数字。** 第二个用例断言 `withDrafts.length > published.length`，而不是 `toBe(7)`。因为测试的数据源是磁盘上真实的内容目录，**每写一篇新文章数字就变**。写硬数字的测试不是在护接口，是在给未来的自己埋一个定时红灯。（后端用真数据库跑集成测试时踩的是同一个坑。）
+
+**三、schema 测试就是 Bean Validation 单测。** `expect(() => ...).toThrow()` 对应 JUnit 的 `assertThrows`，语义一模一样：**坏数据必须被拒绕**。这类用例看着平淡，却是 2.4 那道"边界防线"的回归测试——防线自己也得有人看着。
+
+**四、`async` 测试不需要额外机制。** `it("...", async () => { await ... })` 就完事了，不用像 Java 一样担心异步测试的 latch 和超时。这是 `Promise` 统一签名（7.2）在测试侧白拿的一份红利。
+
+致于"前端测什么"，我给自己定的优先级很保守，先只做第一档：
+
+1. **纯函数与 repository**（最高性价比）——逻辑密集、无 DOM、跑得快，就是后端单测的手感。本站目前的测试全在这一档。
+2. **组件渲染测试**（进阶）——需要模拟 DOM 环境、需要学一套新的断言风格（"按用户看到的文本去查元素"），等第二轮再碰。
+3. **端到端**（更后）——真浏览器跑完整流程，价值高但维护成本也高，对个人站不是当前瞬间的次优项。
+
+一句话总结这一节：前端测试的难处不在工具，在"什么值得测"的判断——而这个判断力，恰好是后端多年写单测沉下来的、不依赖语言的那部分。
+
+---
+
+## 十一 第一次实战——串联全流程的心智地图
+
+前面六节（五到十）各自都是一块拼图。这一节不引新代码，只把它们拼成一条可执行的路径。假设需求是"给博客加一个文章目录 TOC 组件"（第四阶段验收的候选项之一），完整路径是这样的：
+
+```
+需求：给博客加一个文章目录 TOC 组件
+
+第 1 步  定义数据形状      schema.ts / types.ts        ← 第七节（也回扣 2.4）
+第 2 步  提供数据          repository.ts 派生 headings   ← 第七节
+第 3 步  写组件            shared/ui → domain/components ← 第五节
+第 4 步  消费令牌做样式    零裸值，只用 Semantic 层     ← 第八节
+第 5 步  接路由与 loader    routes.ts + 页面 loader      ← 第六、七节
+第 6 步  写测试            tests/ 里测行为不测实现     ← 第十节
+第 7 步  五条命令全绿 → 上线                            ← 第九节
+```
+
+这张地图里最值得记住的不是七个步骤，而是**方向**：从数据形状出发，往界面走。和我在 Java 里的习惯完全一致——先定实体和接口，再写实现，最后才接传输层。之前我对前端最大的误解就是以为它得反着走（先画界面，再想数据）；真正工程化的前端，方向和后端是一样的。
+
+三个每一步都要自问的问题，相当于随车的 checklist：
+
+1. **这段代码需不需要认识业务词汇？**（它决定了代码放 `shared` 还是 `domains`——第五节）
+2. **这个值是从外面来的吗？**（是则先当`unknown`，过 schema 再用——第二、七节）
+3. **这个视觉参数有对应的令牌吗？**（没有就去令牌层加，不在组件里就地硬写——第八节）
+
+回头对照第十二节学习路线图的"阶段四"：验收标准写的是"需求 → schema → 组件 → 路由 → 构建部署全流程独立完成"。把上面那张地图和它逐项对一下，会发现两者是同一件事的两种写法——一个是验收条款，一个是施工图。这也是我把这一节放在路线图之前的原因：先看清路，再看验收标准，后者就不再是一句口号。
+
+剩下的事，得诚实一点。这七个步骤里的每一步，我现在都只是"读得懂"，不是"写得出"。读懂和写出之间那道坑有多深，我写 Java 的第一年已经领教过一次了，不必假装这次会不一样。但至少现在不一样的是：我知道坑在哪里，也知道掉进去之后该回来查第几节。
+
+到这里，"开窍笔记"的工具包已经备齐了。剩下的事只有一件——动手。
+
+---
+
+## 十二 学习路线图
 
 路线图分四个阶段，每个节点都锚定在本博客上练手——不做 todo list 玩具项目，验收标准全部是"对这个真实站点做成某件事"。
 
@@ -616,7 +1217,7 @@ export interface ArticleCardProps {
 
 说明两点：一，"够用"的标准刻意定得保守——每个节点不求精通，求"能在本站代码里行动"；精通是行动的副产品，不是前置条件。二，**此表将来会由可视化学习地图组件替换**（那个组件本身就是第四阶段的候选功能之一，用自己的学习工具验收自己的学习，闭环）。
 
-## 六 坑与顿悟记录
+## 十三 坑与顿悟记录
 
 这一节是活文档里最活的部分。每次被坑或者开窍，回来追加一条，格式固定：
 
